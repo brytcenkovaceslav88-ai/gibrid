@@ -668,6 +668,7 @@
         <input type="text" class="search-input" id="searchInput-projects" placeholder="Поиск по таблице…">
       </div>
       <div class="toolbar-actions">
+        <button class="btn-add" id="addRowBtn-projects">+ Добавить проект</button>
         <button class="btn-add" id="downloadExcelBtn-projects">⬇ Скачать в Excel</button>
         <button class="btn-add" id="addColBtn-projects">+ Добавить колонку</button>
         <button class="btn-ghost" id="resetBtn-projects">Сбросить к исходным данным</button>
@@ -1968,6 +1969,12 @@
     }
   }
 
+  function addRowToDefaultSection(c){
+    var key = c.sectionKeys[c.sectionKeys.length - 1];
+    if(!key) return;
+    addRowToSection(c, key);
+  }
+
   function deleteRow(c, section, rowIdx){
     var r = c.state[section][rowIdx];
     var label = (r && r.project) ? ('«' + r.project + '»') : ('#' + (Number(rowIdx) + 1));
@@ -2776,6 +2783,7 @@
   document.getElementById('addColBtn-registry').addEventListener('click', function(){ addColumn(registryController); });
   document.getElementById('resetBtn-registry').addEventListener('click', function(){ resetController(registryController); });
   document.getElementById('addColBtn-projects').addEventListener('click', function(){ addColumn(projectsController); });
+  document.getElementById('addRowBtn-projects').addEventListener('click', function(){ addRowToDefaultSection(projectsController); });
   document.getElementById('resetBtn-projects').addEventListener('click', function(){ resetController(projectsController); });
   document.getElementById('addColBtn-requirements').addEventListener('click', function(){ addColumn(requirementsController); });
   document.getElementById('resetBtn-requirements').addEventListener('click', function(){ resetController(requirementsController); });
