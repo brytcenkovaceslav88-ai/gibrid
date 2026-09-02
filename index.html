@@ -283,7 +283,7 @@
   .filter-check-row:hover{background:var(--bg);}
   .filter-check-row input{cursor:pointer;accent-color:var(--accent);flex-shrink:0;}
   .filter-check-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  th.actions-th{width:34px;padding-left:6px;padding-right:6px;}
+  th.actions-th{width:52px;padding-left:6px;padding-right:6px;}
   tbody td{
     padding:9px 12px;
     border-bottom:1px solid var(--line);
@@ -362,6 +362,15 @@
   td[data-field="confluenceLink"],td[data-field="crmLink"]{min-width:150px;}
 
   /* row / column actions */
+  .row-drag-handle{
+    display:inline-block;cursor:grab;color:#C7CFC9;font-size:13px;letter-spacing:-1px;
+    line-height:1;margin-right:2px;vertical-align:middle;
+  }
+  .row-drag-handle:hover{color:var(--ink-soft);}
+  tbody tr[draggable="true"]{cursor:default;}
+  tbody tr.row-dragging{opacity:.4;}
+  tbody tr.row-drop-above td{box-shadow:inset 0 3px 0 0 var(--accent);}
+  tbody tr.row-drop-below td{box-shadow:inset 0 -3px 0 0 var(--accent);}
   .row-del{
     width:24px;height:24px;border-radius:6px;border:none;background:transparent;
     color:#B8C2BC;font-size:15px;line-height:1;cursor:pointer;
@@ -626,7 +635,7 @@
     <section class="pipeline" id="pipeline-registry" aria-label="Сводка по статусам миграции"></section>
 
     <div class="toolbar">
-      <span class="hint">🖱️ Один клик — редактировать · 📅 дата — календарь · ⠿ — перетащить · 🔽 — фильтр</span>
+      <span class="hint">🖱️ Один клик — редактировать · 📅 дата — календарь · ⠿ — перетащить колонку/строку · 🔽 — фильтр</span>
       <div class="search-wrap">
         <span class="search-icon">🔎</span>
         <input type="text" class="search-input" id="searchInput-registry" placeholder="Поиск по таблице…">
@@ -653,7 +662,7 @@
     <section class="pipeline" id="pipeline-projects" aria-label="Сводка по статусам проектов"></section>
 
     <div class="toolbar">
-      <span class="hint">🖱️ Один клик — редактировать · 🔗 ссылки — добавить/открыть · ⠿ — перетащить · 🔽 — фильтр</span>
+      <span class="hint">🖱️ Один клик — редактировать · 🔗 ссылки — добавить/открыть · ⠿ — перетащить колонку/строку · 🔽 — фильтр</span>
       <div class="search-wrap">
         <span class="search-icon">🔎</span>
         <input type="text" class="search-input" id="searchInput-projects" placeholder="Поиск по таблице…">
@@ -1435,6 +1444,40 @@
       var tr = document.createElement('tr');
       tr.dataset.section = sectionKey;
       tr.dataset.row = rowIdx;
+      tr.draggable = true;
+
+      tr.addEventListener('dragstart', function(e){
+        rowDragState = { viewKey: c.viewKey, section: sectionKey, rowIndex: rowIdx };
+        tr.classList.add('row-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        try{ e.dataTransfer.setData('text/plain', 'row'); }catch(err){}
+      });
+      tr.addEventListener('dragend', function(){
+        tr.classList.remove('row-dragging');
+        clearRowDropIndicators();
+        rowDragState = null;
+      });
+      tr.addEventListener('dragover', function(e){
+        if(!rowDragState || rowDragState.viewKey !== c.viewKey || rowDragState.section !== sectionKey || rowDragState.rowIndex === rowIdx) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        var rect = tr.getBoundingClientRect();
+        var isBelow = (e.clientY - rect.top) > rect.height / 2;
+        tr.classList.remove('row-drop-above','row-drop-below');
+        tr.classList.add(isBelow ? 'row-drop-below' : 'row-drop-above');
+      });
+      tr.addEventListener('dragleave', function(){
+        tr.classList.remove('row-drop-above','row-drop-below');
+      });
+      tr.addEventListener('drop', function(e){
+        e.preventDefault();
+        var wasBelow = tr.classList.contains('row-drop-below');
+        tr.classList.remove('row-drop-above','row-drop-below');
+        if(!rowDragState || rowDragState.viewKey !== c.viewKey || rowDragState.section !== sectionKey || rowDragState.rowIndex === rowIdx) return;
+        reorderRow(c, sectionKey, rowDragState.rowIndex, rowIdx, wasBelow);
+        rowDragState = null;
+      });
+
       c.state.columns.forEach(function(col){
         var field = col.id;
         var td = document.createElement('td');
@@ -1476,12 +1519,17 @@
       });
       var actionsTd = document.createElement('td');
       actionsTd.className = 'action-cell';
+      var rowHandle = document.createElement('span');
+      rowHandle.className = 'row-drag-handle';
+      rowHandle.title = 'Перетащить строку';
+      rowHandle.textContent = '⠿';
       var delBtn = document.createElement('button');
       delBtn.className = 'row-del';
       delBtn.type = 'button';
       delBtn.title = 'Удалить строку';
       delBtn.textContent = '×';
       delBtn.addEventListener('click', function(){ deleteRow(c, sectionKey, rowIdx); });
+      actionsTd.appendChild(rowHandle);
       actionsTd.appendChild(delBtn);
       tr.appendChild(actionsTd);
       tbody.appendChild(tr);
@@ -1991,6 +2039,29 @@
       cols.splice(insertAfter ? toIdx + 1 : toIdx, 0, moved);
     }
     c.persistColumns();
+    render(c);
+  }
+
+  // ---- Row drag-and-drop reordering (within the same section) ----
+  var rowDragState = null;
+
+  function clearRowDropIndicators(){
+    document.querySelectorAll('.row-drop-above,.row-drop-below').forEach(function(el){
+      el.classList.remove('row-drop-above', 'row-drop-below');
+    });
+  }
+
+  function reorderRow(c, section, fromIndex, toIndex, insertAfter){
+    var arr = c.state[section];
+    if(!arr || fromIndex === toIndex) return;
+    var movedObj = arr[fromIndex];
+    var targetObj = arr[toIndex];
+    if(!movedObj || !targetObj) return;
+    arr.splice(fromIndex, 1);
+    var newTargetIdx = arr.indexOf(targetObj);
+    var insertIdx = insertAfter ? newTargetIdx + 1 : newTargetIdx;
+    arr.splice(insertIdx, 0, movedObj);
+    c.persistSection(section);
     render(c);
   }
 
