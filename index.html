@@ -1954,18 +1954,27 @@
   }
 
   // ---- add / delete rows & columns ----
+  function renumberSection(c, section){
+    var hasNumCol = c.state.columns.some(function(col){ return col.id === 'num'; });
+    if(!hasNumCol) return;
+    (c.state[section] || []).forEach(function(r, i){ r.num = String(i + 1); });
+  }
+
   function addRowToSection(c, section){
     var newRow = {};
     c.state.columns.forEach(function(col){ newRow[col.id] = ''; });
-    if(newRow.hasOwnProperty('num')) newRow.num = String(c.state[section].length + 1);
     c.state[section].push(newRow);
+    renumberSection(c, section);
     c.persistSection(section);
     render(c);
     var rowIdx = c.state[section].length - 1;
     var target = c.state.columns.find(function(col){ return col.id !== 'num'; }) || c.state.columns[0];
     if(target){
       var cell = document.querySelector('.editable[data-view="'+c.viewKey+'"][data-kind="cell"][data-section="'+section+'"][data-row="'+rowIdx+'"][data-field="'+target.id+'"]');
-      if(cell) activateCell(cell);
+      if(cell){
+        cell.scrollIntoView({ block:'center', behavior:'auto' });
+        activateCell(cell);
+      }
     }
   }
 
@@ -1980,6 +1989,7 @@
     var label = (r && r.project) ? ('«' + r.project + '»') : ('#' + (Number(rowIdx) + 1));
     if(!window.confirm('Удалить строку ' + label + '?')) return;
     c.state[section].splice(rowIdx, 1);
+    renumberSection(c, section);
     c.persistSection(section);
     render(c);
   }
@@ -2058,6 +2068,21 @@
     });
   }
 
+  document.addEventListener('dragover', function(e){
+    if(!rowDragState) return;
+    var wrap = document.querySelector('.view.active .table-wrap');
+    if(!wrap) return;
+    var rect = wrap.getBoundingClientRect();
+    var threshold = 60, maxSpeed = 22, y = e.clientY;
+    if(y < rect.top + threshold){
+      var distTop = Math.min(threshold, Math.max(0, y - rect.top));
+      wrap.scrollTop -= maxSpeed * (1 - distTop / threshold);
+    } else if(y > rect.bottom - threshold){
+      var distBottom = Math.min(threshold, Math.max(0, rect.bottom - y));
+      wrap.scrollTop += maxSpeed * (1 - distBottom / threshold);
+    }
+  });
+
   function reorderRow(c, section, fromIndex, toIndex, insertAfter){
     var arr = c.state[section];
     if(!arr || fromIndex === toIndex) return;
@@ -2068,6 +2093,7 @@
     var newTargetIdx = arr.indexOf(targetObj);
     var insertIdx = insertAfter ? newTargetIdx + 1 : newTargetIdx;
     arr.splice(insertIdx, 0, movedObj);
+    renumberSection(c, section);
     c.persistSection(section);
     render(c);
   }
