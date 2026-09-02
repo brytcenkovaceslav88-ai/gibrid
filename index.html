@@ -1243,6 +1243,8 @@
       addRowLabel: opts.addRowLabel || 'Добавить проект',
       showSectionTitles: opts.showSectionTitles !== false,
       showAddRowButton: opts.showAddRowButton !== false,
+      globalNumbering: !!opts.globalNumbering,
+      crossSectionDrag: !!opts.crossSectionDrag,
       excludeSections: opts.excludeSections || [],
       sectionKeys: opts.sectionKeys.slice(),
       defaults: {
@@ -1313,6 +1315,10 @@
         if(s) c.state[key] = JSON.parse(s);
         else if(!c.state[key]) c.state[key] = [];
         if(!c.state.titles[key]) c.state.titles[key] = 'Новый раздел';
+      }
+      if(c.globalNumbering){
+        renumberAllSections(c);
+        c.sectionKeys.forEach(function(key){ c.persistSection(key); });
       }
     }catch(e){ console.error('loadController failed for', c.viewKey, e); }
     render(c);
@@ -1459,7 +1465,9 @@
         rowDragState = null;
       });
       tr.addEventListener('dragover', function(e){
-        if(!rowDragState || rowDragState.viewKey !== c.viewKey || rowDragState.section !== sectionKey || rowDragState.rowIndex === rowIdx) return;
+        if(!rowDragState || rowDragState.viewKey !== c.viewKey) return;
+        if(!c.crossSectionDrag && rowDragState.section !== sectionKey) return;
+        if(rowDragState.section === sectionKey && rowDragState.rowIndex === rowIdx) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         var rect = tr.getBoundingClientRect();
@@ -1474,8 +1482,10 @@
         e.preventDefault();
         var wasBelow = tr.classList.contains('row-drop-below');
         tr.classList.remove('row-drop-above','row-drop-below');
-        if(!rowDragState || rowDragState.viewKey !== c.viewKey || rowDragState.section !== sectionKey || rowDragState.rowIndex === rowIdx) return;
-        reorderRow(c, sectionKey, rowDragState.rowIndex, rowIdx, wasBelow);
+        if(!rowDragState || rowDragState.viewKey !== c.viewKey) return;
+        if(!c.crossSectionDrag && rowDragState.section !== sectionKey) return;
+        if(rowDragState.section === sectionKey && rowDragState.rowIndex === rowIdx) return;
+        reorderRow(c, rowDragState.section, rowDragState.rowIndex, sectionKey, rowIdx, wasBelow);
         rowDragState = null;
       });
 
@@ -1960,12 +1970,34 @@
     (c.state[section] || []).forEach(function(r, i){ r.num = String(i + 1); });
   }
 
+  function renumberAllSections(c){
+    var hasNumCol = c.state.columns.some(function(col){ return col.id === 'num'; });
+    if(!hasNumCol) return;
+    var n = 1;
+    c.sectionKeys.forEach(function(key){
+      (c.state[key] || []).forEach(function(r){ r.num = String(n); n++; });
+    });
+  }
+
+  function renumber(c, touchedSection){
+    if(c.globalNumbering) renumberAllSections(c);
+    else renumberSection(c, touchedSection);
+  }
+
+  function persistTouchedSections(c, sections){
+    if(c.globalNumbering){
+      c.sectionKeys.forEach(function(key){ c.persistSection(key); });
+    } else {
+      sections.forEach(function(key){ c.persistSection(key); });
+    }
+  }
+
   function addRowToSection(c, section){
     var newRow = {};
     c.state.columns.forEach(function(col){ newRow[col.id] = ''; });
     c.state[section].push(newRow);
-    renumberSection(c, section);
-    c.persistSection(section);
+    renumber(c, section);
+    persistTouchedSections(c, [section]);
     render(c);
     var rowIdx = c.state[section].length - 1;
     var target = c.state.columns.find(function(col){ return col.id !== 'num'; }) || c.state.columns[0];
@@ -1989,8 +2021,8 @@
     var label = (r && r.project) ? ('«' + r.project + '»') : ('#' + (Number(rowIdx) + 1));
     if(!window.confirm('Удалить строку ' + label + '?')) return;
     c.state[section].splice(rowIdx, 1);
-    renumberSection(c, section);
-    c.persistSection(section);
+    renumber(c, section);
+    persistTouchedSections(c, [section]);
     render(c);
   }
 
@@ -2083,18 +2115,32 @@
     }
   });
 
-  function reorderRow(c, section, fromIndex, toIndex, insertAfter){
-    var arr = c.state[section];
-    if(!arr || fromIndex === toIndex) return;
-    var movedObj = arr[fromIndex];
-    var targetObj = arr[toIndex];
-    if(!movedObj || !targetObj) return;
-    arr.splice(fromIndex, 1);
-    var newTargetIdx = arr.indexOf(targetObj);
-    var insertIdx = insertAfter ? newTargetIdx + 1 : newTargetIdx;
-    arr.splice(insertIdx, 0, movedObj);
-    renumberSection(c, section);
-    c.persistSection(section);
+  function reorderRow(c, fromSection, fromIndex, toSection, toIndex, insertAfter){
+    var fromArr = c.state[fromSection];
+    var toArr = c.state[toSection];
+    if(!fromArr || !toArr) return;
+    if(fromSection === toSection && fromIndex === toIndex) return;
+    var movedObj = fromArr[fromIndex];
+    if(!movedObj) return;
+    var targetObj = toArr[toIndex];
+
+    fromArr.splice(fromIndex, 1);
+
+    if(fromSection === toSection){
+      var newIdx = toArr.indexOf(targetObj);
+      var insertIdx = insertAfter ? newIdx + 1 : newIdx;
+      if(insertIdx < 0) insertIdx = toArr.length;
+      toArr.splice(insertIdx, 0, movedObj);
+    } else {
+      var idx = targetObj ? toArr.indexOf(targetObj) : toArr.length;
+      var insertIdx2 = insertAfter ? idx + 1 : idx;
+      if(insertIdx2 < 0) insertIdx2 = toArr.length;
+      toArr.splice(insertIdx2, 0, movedObj);
+    }
+
+    renumber(c, fromSection);
+    var touched = fromSection === toSection ? [fromSection] : [fromSection, toSection];
+    persistTouchedSections(c, touched);
     render(c);
   }
 
@@ -2217,6 +2263,8 @@
     c.state.titles = clone(c.defaults.titles);
     c.sectionKeys = c.defaults.sectionKeys.slice();
     c.sectionKeys.forEach(function(key){ c.state[key] = clone(c.defaults.sections[key]); });
+    if(c.globalNumbering) renumberAllSections(c);
+    else c.sectionKeys.forEach(function(key){ renumberSection(c, key); });
     c.columnFilters = {};
     c.searchQuery = '';
     var searchInput = document.getElementById('searchInput-' + c.viewKey);
@@ -2769,6 +2817,8 @@
     donutSummary: true,
     showSectionTitles: false,
     showAddRowButton: false,
+    globalNumbering: true,
+    crossSectionDrag: true,
     excludeSections: ['hybrid','pak'],
     dateFields: ['deadline'],
     linkFields: ['confluenceLink','crmLink'],
