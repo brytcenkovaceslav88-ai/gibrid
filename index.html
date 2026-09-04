@@ -159,6 +159,91 @@
   .stage-count{font-family:'Manrope',sans-serif;font-weight:800;font-size:15px;}
   .stage-sep{color:var(--line);font-size:16px;padding:0 2px;}
 
+  /* ---- Questionnaire button + modal (Опросники) ---- */
+  .questionnaire-btn{
+    font-family:inherit;font-size:12.5px;font-weight:600;color:var(--ink);
+    background:var(--bg);border:1px solid var(--line);border-radius:8px;
+    padding:7px 11px;cursor:pointer;white-space:nowrap;
+  }
+  .questionnaire-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .questionnaire-btn-done{background:var(--accent-soft);border-color:transparent;color:var(--accent);}
+  .questionnaire-btn-disabled{color:var(--ink-soft);cursor:not-allowed;opacity:.7;}
+
+  .qm-overlay{
+    position:fixed;inset:0;background:rgba(22,33,28,.5);z-index:200;
+    display:flex;align-items:center;justify-content:center;padding:24px;
+  }
+  .qm-modal{
+    background:var(--surface);border-radius:14px;box-shadow:0 20px 60px rgba(22,33,28,.35);
+    width:100%;max-width:760px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;
+  }
+  .qm-header{
+    display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
+    padding:20px 24px 16px;border-bottom:1px solid var(--line);flex-shrink:0;
+  }
+  .qm-title{font-family:'Manrope',sans-serif;font-weight:800;font-size:17px;color:var(--ink);}
+  .qm-subtitle{font-size:12.5px;color:var(--ink-soft);margin-top:4px;}
+  .qm-close{
+    flex-shrink:0;width:32px;height:32px;border-radius:8px;border:none;background:var(--bg);
+    color:var(--ink-soft);font-size:20px;line-height:1;cursor:pointer;
+  }
+  .qm-close:hover{background:var(--risk-bg);color:#C6403A;}
+  .qm-tabs{display:flex;gap:4px;padding:12px 24px 0;border-bottom:1px solid var(--line);flex-shrink:0;}
+  .qm-tab{
+    font-family:'Manrope',sans-serif;font-weight:700;font-size:13px;color:var(--ink-soft);
+    background:transparent;border:none;padding:10px 16px;border-radius:8px 8px 0 0;cursor:pointer;
+    border-bottom:2px solid transparent;margin-bottom:-1px;
+  }
+  .qm-tab:hover{color:var(--ink);}
+  .qm-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+  .qm-body{padding:16px 24px;overflow-y:auto;flex:1;}
+  .qm-section{margin-bottom:20px;}
+  .qm-section-title{
+    font-family:'Manrope',sans-serif;font-weight:700;font-size:11.5px;color:var(--ink-soft);
+    text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;
+    padding-bottom:6px;border-bottom:1px solid var(--line);
+  }
+  .qm-field-row{
+    display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:12px;align-items:center;
+    padding:7px 0;
+  }
+  .qm-field-label{font-size:13px;color:var(--ink);display:flex;align-items:center;gap:5px;}
+  .qm-hint{
+    display:inline-flex;align-items:center;justify-content:center;
+    color:var(--ink-soft);cursor:help;font-size:12px;flex-shrink:0;
+  }
+  .qm-select,.qm-input,.qm-comment{
+    width:100%;font-family:inherit;font-size:13px;color:var(--ink);
+    background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:7px 9px;
+  }
+  .qm-select:focus,.qm-input:focus,.qm-comment:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+  .qm-comment{background:transparent;}
+  .qm-agent-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .qm-agent-table th{
+    text-align:left;font-family:'Manrope',sans-serif;font-weight:700;font-size:11px;
+    color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;
+    padding:6px 8px;border-bottom:1px solid var(--line);
+  }
+  .qm-agent-table td{padding:4px 8px 4px 0;border-bottom:1px solid var(--line);}
+  .qm-agent-table input{
+    width:100%;font-family:inherit;font-size:12.5px;color:var(--ink);
+    background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 7px;
+  }
+  .qm-footer{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:14px 24px;border-top:1px solid var(--line);flex-shrink:0;
+  }
+  .qm-save-status{font-size:12.5px;font-weight:600;color:var(--accent);opacity:0;transition:opacity .25s ease;}
+  .qm-save-status.show{opacity:1;}
+  .qm-done-btn{
+    font-family:inherit;font-weight:600;font-size:13px;color:#fff;
+    background:var(--accent);border:none;border-radius:8px;padding:9px 18px;cursor:pointer;
+  }
+  .qm-done-btn:hover{filter:brightness(1.08);}
+  @media (max-width:640px){
+    .qm-field-row{grid-template-columns:1fr;gap:6px;}
+  }
+
   /* ---- Donut chart summary (Текущие проекты) ---- */
   .donut-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(210px,1fr));gap:16px;width:100%;flex:1 1 auto;}
   .donut-card{display:flex;flex-direction:column;gap:8px;min-width:0;}
@@ -560,7 +645,7 @@
     }
     body{background:#fff;}
     .page{max-width:100%;padding:0.4in 0.35in;}
-    .topbar,.tabs-bar,.arch-toolbar,.global-save-status,.toolbar{display:none !important;}
+    .topbar,.tabs-bar,.arch-toolbar,.global-save-status,.toolbar,.qm-overlay{display:none !important;}
     .print-header{
       display:flex !important;align-items:center;gap:14px;
       padding-bottom:14px;margin-bottom:18px;border-bottom:2px solid var(--ink);
@@ -1128,9 +1213,11 @@
     {id:'tasks', label:'Задачи'},
     {id:'comment', label:'Комментарий'},
     {id:'confluenceLink', label:'Confluence'},
-    {id:'crmLink', label:'Сделка CRM'}
+    {id:'crmLink', label:'Сделка CRM'},
+    {id:'questionnaire', label:'Опросники'}
   ];
   var PROJECTS_TITLES_DEFAULT = { oilgas: 'Нефтегаз', actiontasks: 'Активные задачи' };
+  var QUESTIONNAIRE_SPECS = {"pak": {"tabs": [{"id": "gigachat", "label": "GigaChat", "sections": [{"title": "IT", "fields": [{"id": "os", "label": "Операционная система", "type": "select", "options": ["Астра", "СберОС"]}, {"id": "deployment", "label": "Исполнение продукта", "type": "text", "hint": "ПАК=Baremetal+ПО+ЦОД заказчика", "default": "ПАК GigaEnterprise"}]}, {"title": "БЕЗОПАСНОСТЬ", "fields": [{"id": "access", "label": "Доступ в контур заказчика", "type": "select", "options": ["SSH", "SSH+VPN", "Свой вариант"], "hint": "Заказчик организует доступ в свою сеть"}, {"id": "monitoring", "label": "Интеграция в мониторинг Заказчика", "type": "select", "options": ["Да", "Нет"], "hint": "Экспорт метрик и логов в единую систему мониторинга Заказчика"}, {"id": "persdata", "label": "Передача, обработка, хранение персданных", "type": "select", "options": ["Да", "Нет"], "hint": "ПАК не сертифицирован"}, {"id": "nsd", "label": "Защита от НСД на объекте", "type": "select", "options": ["Да", "Нет"], "hint": "Защита от несанкционированного доступа"}, {"id": "buffer", "label": "Промежуточный контур для обновления ПАК", "type": "select", "options": ["Да", "Нет"], "hint": "Позволяет загружать данные для двустороннего обмена при отсутствии доступа к серверу"}, {"id": "masking", "label": "Маскирование данных", "type": "select", "options": ["Да", "Нет"], "hint": "Изменение/сокращение критических данных при выходе за контур безопасности Заказчика"}]}, {"title": "LLM", "fields": [{"id": "visionocr", "label": "Vision+OCR", "type": "select", "options": ["Да", "Нет"], "hint": "Системы распознавания изображений и парсинга документов"}, {"id": "model", "label": "Основная модель", "type": "select", "options": ["GigaChat 2 Pro", "GigaChat 2 Max", "GigaChat 3 Max", "GigaChat 2 Max Reasoning"]}]}, {"title": "ПМИ", "fields": [{"id": "pmi_hw", "label": "Есть ПМИ на оборудование", "type": "select", "options": ["Да", "Нет"], "hint": "Наличие собственной программы испытаний Заказчика оборудование после монтажа"}, {"id": "pmi_pak", "label": "Есть ПМИ на ПАК", "type": "select", "options": ["Да", "Нет"], "hint": "Наличие собственной программы испытаний Заказчика на ПАК после запуска"}]}, {"title": "НАГРУЗКА", "fields": [{"id": "maxusers", "label": "Максимальное число активных пользователей", "type": "number", "hint": "Предположение о нагрузке"}, {"id": "maxrd", "label": "Максимальный R/D", "type": "number", "hint": "Предположение о максимальном числе запросов к LLM в сутки"}]}, {"title": "GPU", "fields": [{"id": "gpu", "label": "GPU", "type": "select", "options": ["2xH100", "4xH100", "8xH100", "2xH200", "4xH200", "8xH200"], "hint": "Предполагаемое наполнение GPU"}]}]}, {"id": "integration", "label": "Интеграция", "sections": [{"title": "СИСТЕМНАЯ", "fields": [{"id": "metrics", "label": "Метрики", "type": "select", "options": ["Да", "Нет"], "hint": "Экспорт в мониторинг Заказчика. Если «Да», описать систему и протокол интеграции"}, {"id": "logs", "label": "Логи", "type": "select", "options": ["Да", "Нет"], "hint": "Экспорт в SIEM Заказчика. Если «Да», описать систему и протокол интеграции"}, {"id": "idmiam", "label": "IDM/IAM", "type": "select", "options": ["Да", "Нет"], "hint": "Пользователи и модель доступа на стороне заказчика"}, {"id": "api", "label": "API", "type": "select", "options": ["HTTPS(TLS)", "HTTPS(mTLS)", "Нет"], "hint": "Произвольные инструменты и собственные программы/боты/агенты"}]}], "agentTable": {"title": "АГЕНТСКАЯ", "columns": ["Название", "Стек", "Комментарий"], "rows": 17, "example": ["ERP", "1C+Postgres", "Пример описания"]}}, {"id": "server", "label": "Сервер", "sections": [{"title": "ЛОГИСТИКА", "fields": [{"id": "floor", "label": "Подъем на этаж", "type": "number"}, {"id": "delivery_pay", "label": "Оплата доставки", "type": "select", "options": ["СБЕР", "Заказчик", "Поставщик об-я"]}, {"id": "delivery_place", "label": "Доставка до места монтажа", "type": "select", "options": ["Да", "Нет"]}, {"id": "delivery_date", "label": "Желаемый срок поставки", "type": "text"}, {"id": "opening_restrictions", "label": "Ограничения проемов", "type": "select", "options": ["Да", "Нет"], "hint": "В комментарии описать геометрию самых узких проемов в здании ЦОДа"}]}, {"title": "МОНТАЖ", "fields": [{"id": "installation", "label": "Монтаж в ЦОД", "type": "select", "options": ["СБЕР", "Заказчик", "Поставщик об-я"], "hint": "Ответственные за монтаж"}, {"id": "rack_type", "label": "Тип", "type": "select", "options": ["Стойка 19' (rack)", "Стойка 16' (rack)", "Напольный (tower)"]}, {"id": "rack_height", "label": "Высота", "type": "select", "options": ["1U", "2U", "4U", "6U", "8U"], "hint": "Доступные юниты в стойке"}, {"id": "rack_rails", "label": "Рельсы", "type": "select", "options": ["Статические (уши)", "Выдвижные"], "hint": "Тип крепления сервера"}, {"id": "cooling", "label": "Охлаждение", "type": "select", "options": ["Воздушное", "Жидкостное"], "hint": "Тип охлаждения в ЦОДе"}, {"id": "tdp", "label": "Допустимое TDP/BTU", "type": "text", "hint": "Предельно допустимое тепловыделение"}]}, {"title": "ПИТАНИЕ", "fields": [{"id": "power_inputs", "label": "Количество вводов питания", "type": "number", "hint": "Свободные вводы питания в конкретной стойке монтажа"}, {"id": "sockets", "label": "Розетки", "type": "select", "options": ["С13", "С19", "Shuko"], "hint": "Типы розеток в стойке"}, {"id": "power_type", "label": "Питание", "type": "select", "options": ["24DC", "48DC", "220AC"], "hint": "Тип питания в стойке"}, {"id": "cable_length", "label": "Необходимая длина кабелей, м", "type": "number"}]}, {"title": "СЕТЬ", "fields": [{"id": "network_interfaces", "label": "Количество сетевых интерфейсов", "type": "number"}, {"id": "ipmi", "label": "IPMI", "type": "select", "options": ["Да", "Нет"]}, {"id": "interface", "label": "Интерфейс", "type": "select", "options": ["RJ45", "SFP", "OSFP"]}, {"id": "bandwidth", "label": "Пропускная способность интерфейса, Gbit/s", "type": "number"}]}]}]}, "hybrid": {"tabs": [{"id": "gigachat", "label": "GigaChat", "sections": [{"title": "IT", "fields": [{"id": "os", "label": "Операционная система", "type": "select", "options": ["Астра", "СберОС"]}, {"id": "virtualization", "label": "Виртуализация", "type": "select", "options": ["Сервисы", "k8s", "docker swarm"]}, {"id": "deployment", "label": "Исполнение продукта", "type": "text", "hint": "Данные в ЦОД Заказчика. GPU в ЦОД GigaCloud", "default": "Гибрид GigaEnterprise"}]}, {"title": "БЕЗОПАСНОСТЬ", "fields": [{"id": "access", "label": "Доступ в контур заказчика", "type": "select", "options": ["SSH", "SSH+VPN", "Свой вариант"], "hint": "Заказчик организует доступ в свою сеть"}, {"id": "monitoring", "label": "Интеграция в мониторинг Заказчика", "type": "select", "options": ["Да", "Нет"], "hint": "Экспорт метрик и логов в единую систему мониторинга Заказчика"}, {"id": "persdata", "label": "Передача, обработка, хранение персданных", "type": "select", "options": ["Да", "Нет"], "hint": "Не сертифицирован"}, {"id": "buffer", "label": "Промежуточный контур для обновления", "type": "select", "options": ["Да", "Нет"], "hint": "Позволяет загружать данные для двустороннего обмена при отсутствии доступа к серверу"}, {"id": "masking", "label": "Маскирование данных", "type": "select", "options": ["Да", "Нет"], "hint": "Изменение/сокращение критических данных при выходе за контур безопасности Заказчика. Требует GPU 8gb"}]}, {"title": "LLM", "fields": [{"id": "visionocr", "label": "Vision+OCR", "type": "select", "options": ["Да", "Нет"], "hint": "Системы распознавания изображений и парсинга документов"}, {"id": "model", "label": "Основная модель", "type": "select", "options": ["GigaChat 2 Pro", "GigaChat 2 Max"]}]}, {"title": "НАГРУЗКА", "fields": [{"id": "maxusers", "label": "Максимальное число зарегистрированных пользователей", "type": "number", "hint": "Предположение о нагрузке"}, {"id": "maxrd", "label": "Максимальный R/D", "type": "number", "hint": "Предположение о максимальном числе запросов к LLM в сутки"}, {"id": "sizing", "label": "Сайзинг", "type": "text", "hint": "Рассчитывается автоматически"}]}]}, {"id": "integration", "label": "Интеграция", "sections": [{"title": "СИСТЕМНАЯ", "fields": [{"id": "metrics", "label": "Метрики", "type": "select", "options": ["Да", "Нет"], "hint": "Экспорт в мониторинг Заказчика. Если «Да», описать систему и протокол интеграции"}, {"id": "logs", "label": "Логи", "type": "select", "options": ["Да", "Нет"], "hint": "Экспорт в SIEM Заказчика. Если «Да», описать систему и протокол интеграции"}, {"id": "idmiam", "label": "IDM/IAM", "type": "select", "options": ["Да", "Нет"], "hint": "Пользователи и модель доступа на стороне заказчика"}, {"id": "api", "label": "API", "type": "select", "options": ["HTTPS(TLS)", "HTTPS(mTLS)", "Нет"], "hint": "Произвольные инструменты и собственные программы/боты/агенты"}]}], "agentTable": {"title": "АГЕНТСКАЯ", "columns": ["Название", "Стек", "Комментарий"], "rows": 17, "example": ["ERP", "1C+Postgres", "Пример описания"]}}]}};
 
   var PROJECTS_OILGAS_DEFAULT = OILGAS_DATA;
   var PROJECTS_ACTIONTASKS_DEFAULT = [{"num": "1", "project": "Сбербанк-АСТ", "block": "", "product": "", "team": "", "responsible": "Анил Панда", "status": "Заблокирована", "goals": "", "deadline": "04.08.2026", "nda": "", "testContract": "", "testDelivery": "", "purchaseContract": "", "contacts": "", "tasks": "Установка GigaChat Pro на железе клиента", "confluenceLink": "", "crmLink": "", "type": "Проектная", "jiraLink": "https://tasks.sberdevices.ru/browse/SDBCTO-1372", "priority": "Средний", "tbResponsible": "Галина Исрафилова", "comment": "Ожидаем доступ от клиента"}, {"num": "2", "project": "Общее", "block": "", "product": "", "team": "", "responsible": "Григорий Михлин", "status": "Новая", "goals": "", "deadline": "TBD", "nda": "", "testContract": "", "testDelivery": "", "purchaseContract": "", "contacts": "", "tasks": "Подготовить описание сравнения моделей Max2/Max2+Reasoning/Max3", "confluenceLink": "", "crmLink": "", "type": "Общее", "jiraLink": "https://tasks.sberdevices.ru/browse/SDBCTO-1361", "priority": "Высокий", "tbResponsible": "Максимов Дмитрий", "comment": ""}, {"num": "3", "project": "ГК \"Гранель\"", "block": "", "product": "", "team": "", "responsible": "Николай Романенко", "status": "Новая", "goals": "", "deadline": "10.08.2026", "nda": "", "testContract": "", "testDelivery": "", "purchaseContract": "", "contacts": "", "tasks": "Миграция с GCE на GigaCowork (ПАК)", "confluenceLink": "", "crmLink": "", "type": "Проектная", "jiraLink": "Не создана, срок миграции не подошел", "priority": "Высокий", "tbResponsible": "Не назначен (Максимов Дмитрий)", "comment": "Ожидаем готовности GigaCowork на ПАК"}, {"num": "4", "project": "ООО \"Медиа Рум\"", "block": "", "product": "", "team": "", "responsible": "Николай Романенко", "status": "Новая", "goals": "", "deadline": "15.09.2026", "nda": "", "testContract": "", "testDelivery": "", "purchaseContract": "", "contacts": "", "tasks": "Миграция с GCE на GigaCowork (Гибрид)", "confluenceLink": "", "crmLink": "", "type": "Проектная", "jiraLink": "Не создана, срок миграции не подошел", "priority": "Высокий", "tbResponsible": "Не назначен (Максимов Дмитрий)", "comment": "Ожидаем готовности GigaCowork на Гибрид"}, {"num": "5", "project": "ООО \"СЗ \"Прогресс-строй\"", "block": "", "product": "", "team": "", "responsible": "Олег Яшин", "status": "Новая", "goals": "", "deadline": "24.08.2026", "nda": "", "testContract": "", "testDelivery": "", "purchaseContract": "", "contacts": "", "tasks": "Миграция с GCE на GigaCowork (Гибрид)", "confluenceLink": "", "crmLink": "", "type": "Проектная", "jiraLink": "Не создана, срок миграции не подошел", "priority": "Высокий", "tbResponsible": "Не назначен (Максимов Дмитрий)", "comment": "Перечень работ от ТБ:\nПодготовить требование к сайзингу Cowork\nПодготовить требования к Заказчику\nОписать процесс миграции\nНазначить ответственного от ТБ за миграцию"}, {"num": "6", "project": "Аэропорт ГА", "block": "", "product": "", "team": "", "responsible": "Олег Яшин", "status": "Новая", "goals": "", "deadline": "24.08.2026", "nda": "", "testContract": "", "testDelivery": "", "purchaseContract": "", "contacts": "", "tasks": "Миграция с GCE на GigaCowork (Гибрид)", "confluenceLink": "", "crmLink": "", "type": "Проектная", "jiraLink": "Не создана, срок миграции не подошел", "priority": "Высокий", "tbResponsible": "Не назначен (Максимов Дмитрий)", "comment": "Перечень работ от ТБ:\nПодготовить требование к сайзингу Cowork\nПодготовить требования к Заказчику\nОписать процесс миграции\nНазначить ответственного от ТБ за миграцию"}, {"num": "7", "project": "ООО \"АКС\"", "block": "", "product": "", "team": "", "responsible": "Олег Яшин", "status": "Новая", "goals": "", "deadline": "24.08.2026", "nda": "", "testContract": "", "testDelivery": "", "purchaseContract": "", "contacts": "", "tasks": "Миграция с GCE на GigaCowork (Гибрид)", "confluenceLink": "", "crmLink": "", "type": "Проектная", "jiraLink": "Не создана, срок миграции не подошел", "priority": "Высокий", "tbResponsible": "Не назначен (Максимов Дмитрий)", "comment": "Перечень работ от ТБ:\nПодготовить требование к сайзингу Cowork\nПодготовить требования к Заказчику\nОписать процесс миграции\nНазначить ответственного от ТБ за миграцию"}, {"num": "8", "project": "ООО СЗ \"СК НВМ\"", "block": "", "product": "", "team": "", "responsible": "Олег Яшин", "status": "Новая", "goals": "", "deadline": "30.09.2026", "nda": "", "testContract": "", "testDelivery": "", "purchaseContract": "", "contacts": "", "tasks": "Миграция с GCE на GigaCowork (ПАК)", "confluenceLink": "", "crmLink": "", "type": "Проектная", "jiraLink": "Не создана, срок миграции не подошел", "priority": "Высокий", "tbResponsible": "Не назначен (Максимов Дмитрий)", "comment": "Перечень работ от ТБ:\nПодготовить требование к сайзингу Cowork\nПодготовить требования к Заказчику\nОписать процесс миграции\nНазначить ответственного от ТБ за миграцию"}, {"num": "9", "project": "ООО \"Ультрамар\"", "block": "", "product": "", "team": "", "responsible": "Григорий Михлин", "status": "Новая", "goals": "", "deadline": "21.09.2026", "nda": "", "testContract": "", "testDelivery": "", "purchaseContract": "", "contacts": "", "tasks": "Миграция с GCE на GigaCowork (ПАК)", "confluenceLink": "", "crmLink": "", "type": "Проектная", "jiraLink": "Не создана, срок миграции не подошел", "priority": "Высокий", "tbResponsible": "Не назначен (Максимов Дмитрий)", "comment": "Подготовить требование к сайзингу Cowork\nПодготовить требования к Заказчику\nОписать процесс миграции\nНазначить ответственного от ТБ за миграцию"}, {"num": "10", "project": "АО \"Азиатско-Тихоокеанский Банк\"", "block": "", "product": "", "team": "", "responsible": "Григорий Михлин", "status": "Новая", "goals": "", "deadline": "15.09.2026", "nda": "", "testContract": "", "testDelivery": "", "purchaseContract": "", "contacts": "", "tasks": "Миграция с GCE на GigaCowork (ПАК)", "confluenceLink": "", "crmLink": "", "type": "Проектная", "jiraLink": "Не создана, срок миграции не подошел", "priority": "Средний", "tbResponsible": "Не назначен (Максимов Дмитрий)", "comment": "Подготовить требование к сайзингу Cowork\nПодготовить требования к Заказчику\nОписать процесс миграции\nНазначить ответственного от ТБ за миграцию"}, {"num": "11", "project": "АО СЗ «Рублево-Архангельское» (Сберсити)", "block": "", "product": "", "team": "", "responsible": "Григорий Михлин", "status": "Новая", "goals": "", "deadline": "30.09.2026", "nda": "", "testContract": "", "testDelivery": "", "purchaseContract": "", "contacts": "", "tasks": "Миграция с GCE на GigaCowork (ПАК)", "confluenceLink": "", "crmLink": "", "type": "Проектная", "jiraLink": "Не создана, срок миграции не подошел", "priority": "Высокий", "tbResponsible": "Не назначен (Максимов Дмитрий)", "comment": "Подготовить требование к сайзингу Cowork\nПодготовить требования к Заказчику\nОписать процесс миграции\nНазначить ответственного от ТБ за миграцию"}, {"num": "12", "project": "ГК \"Самолет\"", "block": "", "product": "", "team": "", "responsible": "Григорий Михлин", "status": "Новая", "goals": "", "deadline": "21.12.2026", "nda": "", "testContract": "", "testDelivery": "", "purchaseContract": "", "contacts": "", "tasks": "Миграция с GCE на GigaCowork (ПАК)", "confluenceLink": "", "crmLink": "", "type": "Проектная", "jiraLink": "Не создана, срок миграции не подошел", "priority": "Низкий", "tbResponsible": "Не назначен (Максимов Дмитрий)", "comment": "Подготовить требование к сайзингу Cowork\nПодготовить требования к Заказчику\nОписать процесс миграции\nНазначить ответственного от ТБ за миграцию"}, {"num": "13", "project": "ООО \"ПИК Технологии\"", "block": "", "product": "", "team": "", "responsible": "Богдан Чугай", "status": "новая", "goals": "", "deadline": "31.08.2026", "nda": "", "testContract": "", "testDelivery": "", "purchaseContract": "", "contacts": "", "tasks": "Миграция с GC на GCE", "confluenceLink": "", "crmLink": "", "type": "Проектная", "jiraLink": "https://tasks.sberdevices.ru/browse/SDBCTO-1273", "priority": "Средний", "tbResponsible": "Галина Исрафилова", "comment": "31.07.26 встреча с Заказчиком для планирования работ\nОрганизовываем удалённый доступ\nПроводим обновление"}, {"num": "14", "project": "ПАО \"Россети Центр\"", "block": "", "product": "", "team": "", "responsible": "Богдан Чугай", "status": "новая", "goals": "", "deadline": "31.08.2026", "nda": "", "testContract": "", "testDelivery": "", "purchaseContract": "", "contacts": "", "tasks": "Миграция с GC на GCE", "confluenceLink": "", "crmLink": "", "type": "Проектная", "jiraLink": "https://tasks.sberdevices.ru/browse/SDBCTO-1407", "priority": "Средний", "tbResponsible": "Марк Прихно", "comment": "Ожидаем удалённый доступ от клиента\nПланируем работы по обновлению\nДистрибутивы переданы"}, {"num": "15", "project": "АО \"Банк ДОМ.РФ\"", "block": "", "product": "", "team": "", "responsible": "Богдан Чугай", "status": "новая", "goals": "", "deadline": "31.12.2026", "nda": "", "testContract": "", "testDelivery": "", "purchaseContract": "", "contacts": "", "tasks": "Миграция с GCE на CoWork", "confluenceLink": "", "crmLink": "", "type": "Проектная", "jiraLink": "Не создана, срок миграции не подошел", "priority": "Средний", "tbResponsible": "Александр Родин", "comment": "Полноценная допродажа"}, {"num": "16", "project": "АО «ТК «Центр» (Столото)", "block": "", "product": "", "team": "", "responsible": "Илья Белоусов", "status": "Новая", "goals": "", "deadline": "30.09.2026", "nda": "", "testContract": "", "testDelivery": "", "purchaseContract": "", "contacts": "", "tasks": "Миграция с GCE на GigaCowork (ПАК)", "confluenceLink": "", "crmLink": "", "type": "Проектная", "jiraLink": "Не создана, срок миграции не подошел", "priority": "Средний", "tbResponsible": "Не назначен (Максимов Дмитрий)", "comment": "Перечень работ от ТБ:\nПодготовить требование к сайзингу Cowork\nПодготовить требования к Заказчику\nОписать процесс миграции\nНазначить ответственного от ТБ за миграцию"}, {"num": "17", "project": "ГК СОЮЗ", "block": "", "product": "", "team": "", "responsible": "Виктор Кошевой", "status": "Новая", "goals": "", "deadline": "05.10.2026", "nda": "", "testContract": "", "testDelivery": "", "purchaseContract": "", "contacts": "", "tasks": "Миграция с GCE на GigaCowork (ПАК)", "confluenceLink": "", "crmLink": "", "type": "Проектная", "jiraLink": "Не создана, срок миграции не подошел", "priority": "Средний", "tbResponsible": "Не назначен (Максимов Дмитрий)", "comment": "Перечень работ от ТБ:\nПодготовить требование к сайзингу Cowork\nПодготовить требования к Заказчику\nОписать процесс миграции\nНазначить ответственного от ТБ за миграцию"}, {"num": "18", "project": "ФосАгро", "block": "", "product": "", "team": "", "responsible": "Виктор Кошевой", "status": "Новая", "goals": "", "deadline": "15.09.2026", "nda": "", "testContract": "", "testDelivery": "", "purchaseContract": "", "contacts": "", "tasks": "Миграция с GCE на GigaCowork (ПАК)", "confluenceLink": "", "crmLink": "", "type": "Проектная", "jiraLink": "Не создана, срок миграции не подошел", "priority": "Высокий", "tbResponsible": "Не назначен (Максимов Дмитрий)", "comment": "Перечень работ от ТБ:\nПодготовить требование к сайзингу Cowork\nПодготовить требования к Заказчику\nОписать процесс миграции\nНазначить ответственного от ТБ за миграцию"}, {"num": "19", "project": "СофтЛайн", "block": "", "product": "", "team": "", "responsible": "Виктор Кошевой", "status": "Новая", "goals": "", "deadline": "15.09.2026", "nda": "", "testContract": "", "testDelivery": "", "purchaseContract": "", "contacts": "", "tasks": "Миграция с GCE на GigaCowork (ПАК)", "confluenceLink": "", "crmLink": "", "type": "Проектная", "jiraLink": "Не создана, срок миграции не подошел", "priority": "Средний", "tbResponsible": "Не назначен (Максимов Дмитрий)", "comment": "Перечень работ от ТБ:\nПодготовить требование к сайзингу Cowork\nПодготовить требования к Заказчику\nОписать процесс миграции\nНазначить ответственного от ТБ за миграцию"}];
@@ -1527,6 +1614,26 @@
           cspan.className = val ? ('badge badge-' + cfg.classFn(val)) : 'cell-link-empty';
           cspan.textContent = val || cfg.placeholder || '— выбрать —';
           td.appendChild(cspan);
+        } else if(field === 'questionnaire'){
+          td.classList.remove('editable');
+          var specKey = productToSpecKey(r.product);
+          var qBtn = document.createElement('button');
+          qBtn.type = 'button';
+          qBtn.className = 'questionnaire-btn';
+          if(!specKey){
+            qBtn.textContent = '— выберите продукт —';
+            qBtn.disabled = true;
+            qBtn.classList.add('questionnaire-btn-disabled');
+          } else {
+            var qProg = computeQuestionnaireProgress(r, specKey);
+            var qDone = qProg.total > 0 && qProg.filled === qProg.total;
+            qBtn.textContent = (qDone ? '✅ ' : '📋 ') + 'Опросник (' + qProg.filled + '/' + qProg.total + ')';
+            if(qDone) qBtn.classList.add('questionnaire-btn-done');
+            (function(sec, idx, spKey){
+              qBtn.addEventListener('click', function(){ openQuestionnaireModal(c, sec, idx, spKey); });
+            })(sectionKey, rowIdx, specKey);
+          }
+          td.appendChild(qBtn);
         } else if(field === 'risks'){
           td.textContent = val;
           td.classList.add(val && val.trim() ? 'has-risk' : 'no-risk');
@@ -1812,6 +1919,278 @@
       + renderDonutCard('Статус', statusGroups)
       + renderDonutCard('Ответственный РП', respGroups)
       + '</div>';
+  }
+
+  // ================= Questionnaire modal (Опросники) =================
+  function productToSpecKey(productValue){
+    var s = (productValue || '').trim().toLowerCase();
+    if(s === 'пак') return 'pak';
+    if(s === 'гибрид') return 'hybrid';
+    return null;
+  }
+
+  function computeQuestionnaireProgress(row, specKey){
+    var spec = QUESTIONNAIRE_SPECS[specKey];
+    if(!spec) return {filled:0, total:0};
+    var total = 0, filled = 0;
+    var data = (row.questionnaire && row.questionnaire[specKey]) || {};
+    spec.tabs.forEach(function(tab){
+      var tabData = data[tab.id] || {};
+      tab.sections.forEach(function(sec){
+        sec.fields.forEach(function(fld){
+          total++;
+          var cell = tabData[fld.id];
+          if(cell && cell.answer) filled++;
+        });
+      });
+    });
+    return {filled: filled, total: total};
+  }
+
+  var qmState = null; // { c, section, rowIdx, specKey, activeTabId }
+
+  function getQuestionnaireData(){
+    var row = qmState.c.state[qmState.section][qmState.rowIdx];
+    if(!row.questionnaire) row.questionnaire = {};
+    if(!row.questionnaire[qmState.specKey]) row.questionnaire[qmState.specKey] = {};
+    return row.questionnaire[qmState.specKey];
+  }
+
+  function qmSaveField(tabId, fieldId, patch){
+    var data = getQuestionnaireData();
+    if(!data[tabId]) data[tabId] = {};
+    if(!data[tabId][fieldId]) data[tabId][fieldId] = {};
+    Object.assign(data[tabId][fieldId], patch);
+    qmState.c.persistSection(qmState.section);
+    var statusEl = document.querySelector('.qm-save-status');
+    if(statusEl){
+      statusEl.textContent = 'Сохранено ✓';
+      statusEl.classList.add('show');
+      clearTimeout(qmState.saveTimer);
+      qmState.saveTimer = setTimeout(function(){ statusEl.classList.remove('show'); }, 1200);
+    }
+  }
+
+  function qmSaveAgentRow(tabId, idx, colIdx, value){
+    var data = getQuestionnaireData();
+    if(!data[tabId]) data[tabId] = {};
+    if(!data[tabId].__agents) data[tabId].__agents = [];
+    if(!data[tabId].__agents[idx]) data[tabId].__agents[idx] = [];
+    data[tabId].__agents[idx][colIdx] = value;
+    qmState.c.persistSection(qmState.section);
+  }
+
+  function closeQuestionnaireModal(){
+    var overlay = document.querySelector('.qm-overlay');
+    if(overlay) overlay.remove();
+    if(qmState){
+      var c = qmState.c;
+      render(c);
+    }
+    qmState = null;
+  }
+
+  function renderQuestionnaireTabBody(bodyEl, tab){
+    bodyEl.innerHTML = '';
+    var data = getQuestionnaireData();
+    var tabData = data[tab.id] || {};
+
+    tab.sections.forEach(function(sec){
+      var secEl = document.createElement('div');
+      secEl.className = 'qm-section';
+      var secTitle = document.createElement('div');
+      secTitle.className = 'qm-section-title';
+      secTitle.textContent = sec.title;
+      secEl.appendChild(secTitle);
+
+      sec.fields.forEach(function(fld){
+        var saved = tabData[fld.id] || {};
+        var row = document.createElement('div');
+        row.className = 'qm-field-row';
+
+        var labelWrap = document.createElement('div');
+        labelWrap.className = 'qm-field-label';
+        labelWrap.textContent = fld.label;
+        if(fld.hint){
+          var hintEl = document.createElement('span');
+          hintEl.className = 'qm-hint';
+          hintEl.textContent = 'ⓘ';
+          hintEl.title = fld.hint;
+          labelWrap.appendChild(hintEl);
+        }
+        row.appendChild(labelWrap);
+
+        var inputWrap = document.createElement('div');
+        inputWrap.className = 'qm-field-input';
+        var answerVal = saved.answer !== undefined ? saved.answer : (fld.default || '');
+
+        if(fld.type === 'select'){
+          var sel = document.createElement('select');
+          sel.className = 'qm-select';
+          var optBlank = document.createElement('option');
+          optBlank.value = ''; optBlank.textContent = '— выбрать —';
+          sel.appendChild(optBlank);
+          (fld.options || []).forEach(function(opt){
+            var o = document.createElement('option');
+            o.value = opt; o.textContent = opt;
+            if(opt === answerVal) o.selected = true;
+            sel.appendChild(o);
+          });
+          sel.addEventListener('change', function(){ qmSaveField(tab.id, fld.id, {answer: sel.value}); });
+          inputWrap.appendChild(sel);
+        } else {
+          var inp = document.createElement('input');
+          inp.type = (fld.type === 'number') ? 'number' : 'text';
+          inp.className = 'qm-input';
+          inp.value = answerVal;
+          inp.addEventListener('change', function(){ qmSaveField(tab.id, fld.id, {answer: inp.value}); });
+          inputWrap.appendChild(inp);
+        }
+        row.appendChild(inputWrap);
+
+        var commentInp = document.createElement('input');
+        commentInp.type = 'text';
+        commentInp.className = 'qm-comment';
+        commentInp.placeholder = 'Комментарий заказчика';
+        commentInp.value = saved.comment || '';
+        commentInp.addEventListener('change', function(){ qmSaveField(tab.id, fld.id, {comment: commentInp.value}); });
+        row.appendChild(commentInp);
+
+        secEl.appendChild(row);
+      });
+      bodyEl.appendChild(secEl);
+    });
+
+    if(tab.agentTable){
+      var atSpec = tab.agentTable;
+      var atWrap = document.createElement('div');
+      atWrap.className = 'qm-section';
+      var atTitle = document.createElement('div');
+      atTitle.className = 'qm-section-title';
+      atTitle.textContent = atSpec.title;
+      atWrap.appendChild(atTitle);
+
+      var table = document.createElement('table');
+      table.className = 'qm-agent-table';
+      var thead = document.createElement('thead');
+      var headRow = document.createElement('tr');
+      atSpec.columns.forEach(function(colLabel){
+        var th = document.createElement('th');
+        th.textContent = colLabel;
+        headRow.appendChild(th);
+      });
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+
+      var tbody = document.createElement('tbody');
+      var savedAgents = tabData.__agents || [];
+      for(var ai = 0; ai < atSpec.rows; ai++){
+        var atr = document.createElement('tr');
+        for(var ci = 0; ci < atSpec.columns.length; ci++){
+          var atd = document.createElement('td');
+          var atInp = document.createElement('input');
+          atInp.type = 'text';
+          var savedVal = (savedAgents[ai] && savedAgents[ai][ci] !== undefined) ? savedAgents[ai][ci] : '';
+          atInp.value = savedVal || (ai === 0 && atSpec.example ? atSpec.example[ci] : '');
+          (function(idx, colIdx, input){
+            input.addEventListener('change', function(){ qmSaveAgentRow(tab.id, idx, colIdx, input.value); });
+          })(ai, ci, atInp);
+          atd.appendChild(atInp);
+          atr.appendChild(atd);
+        }
+        tbody.appendChild(atr);
+      }
+      table.appendChild(tbody);
+      atWrap.appendChild(table);
+      bodyEl.appendChild(atWrap);
+    }
+  }
+
+  function openQuestionnaireModal(c, section, rowIdx, specKey){
+    closePopover();
+    var spec = QUESTIONNAIRE_SPECS[specKey];
+    if(!spec) return;
+    var row = c.state[section][rowIdx];
+    qmState = {c: c, section: section, rowIdx: rowIdx, specKey: specKey, saveTimer: null};
+
+    var overlay = document.createElement('div');
+    overlay.className = 'qm-overlay';
+    overlay.addEventListener('mousedown', function(e){ if(e.target === overlay) closeQuestionnaireModal(); });
+
+    var modal = document.createElement('div');
+    modal.className = 'qm-modal';
+
+    var header = document.createElement('div');
+    header.className = 'qm-header';
+    var titleWrap = document.createElement('div');
+    var titleEl = document.createElement('div');
+    titleEl.className = 'qm-title';
+    titleEl.textContent = 'Опросник — ' + (row.project || 'без названия');
+    var subEl = document.createElement('div');
+    subEl.className = 'qm-subtitle';
+    subEl.textContent = (specKey === 'pak' ? 'ПАК' : 'Гибрид') + ' · GigaEnterprise, нефункциональные требования';
+    titleWrap.appendChild(titleEl);
+    titleWrap.appendChild(subEl);
+    var closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'qm-close';
+    closeBtn.textContent = '×';
+    closeBtn.addEventListener('click', closeQuestionnaireModal);
+    header.appendChild(titleWrap);
+    header.appendChild(closeBtn);
+    modal.appendChild(header);
+
+    var tabsEl = document.createElement('div');
+    tabsEl.className = 'qm-tabs';
+    var bodyEl = document.createElement('div');
+    bodyEl.className = 'qm-body';
+
+    function selectTab(tabId){
+      qmState.activeTabId = tabId;
+      tabsEl.querySelectorAll('.qm-tab').forEach(function(btn){
+        btn.classList.toggle('active', btn.dataset.tab === tabId);
+      });
+      var tabSpec = spec.tabs.find(function(t){ return t.id === tabId; });
+      renderQuestionnaireTabBody(bodyEl, tabSpec);
+    }
+
+    spec.tabs.forEach(function(tab, i){
+      var tBtn = document.createElement('button');
+      tBtn.type = 'button';
+      tBtn.className = 'qm-tab' + (i === 0 ? ' active' : '');
+      tBtn.dataset.tab = tab.id;
+      tBtn.textContent = tab.label;
+      tBtn.addEventListener('click', function(){ selectTab(tab.id); });
+      tabsEl.appendChild(tBtn);
+    });
+    modal.appendChild(tabsEl);
+    modal.appendChild(bodyEl);
+
+    var footer = document.createElement('div');
+    footer.className = 'qm-footer';
+    var saveStatus = document.createElement('span');
+    saveStatus.className = 'qm-save-status';
+    saveStatus.textContent = 'Сохранено ✓';
+    var doneBtn = document.createElement('button');
+    doneBtn.type = 'button';
+    doneBtn.className = 'qm-done-btn';
+    doneBtn.textContent = 'Готово';
+    doneBtn.addEventListener('click', closeQuestionnaireModal);
+    footer.appendChild(saveStatus);
+    footer.appendChild(doneBtn);
+    modal.appendChild(footer);
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    selectTab(spec.tabs[0].id);
+
+    document.addEventListener('keydown', function escHandler(e){
+      if(e.key === 'Escape'){
+        closeQuestionnaireModal();
+        document.removeEventListener('keydown', escHandler);
+      }
+    });
   }
 
   // ================= Excel export (Реестр миграций / Текущие проекты) =================
