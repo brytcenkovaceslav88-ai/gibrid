@@ -381,6 +381,48 @@
   .filter-check-row input{cursor:pointer;accent-color:var(--accent);flex-shrink:0;}
   .filter-check-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   th.actions-th{width:52px;padding-left:6px;padding-right:6px;}
+
+  /* ---- Планирование (weekly planning grid) ---- */
+  #headRow-projects th, #headRow2-projects th{height:38px;box-sizing:border-box;}
+  #headRow2-projects th{position:sticky;top:38px;z-index:2;}
+  .planning-week-th{
+    background:var(--week-color, var(--bar)) !important;
+    text-align:center !important;padding:0 !important;
+    border-right:2px solid var(--bg) !important;
+  }
+  .planning-week-th.planning-week-current{box-shadow:inset 0 0 0 2px #fff;}
+  .planning-week-inner{
+    display:flex;align-items:center;justify-content:center;gap:6px;
+    padding:9px 10px;color:#fff;font-family:'Manrope',sans-serif;font-weight:700;font-size:11.5px;
+    white-space:nowrap;
+  }
+  .planning-toggle{
+    flex-shrink:0;background:rgba(255,255,255,.18);border:none;color:#fff;
+    width:18px;height:18px;border-radius:5px;font-size:10px;line-height:1;cursor:pointer;
+  }
+  .planning-toggle:hover{background:rgba(255,255,255,.32);}
+  .planning-day-th{
+    background:var(--surface) !important;
+    background:color-mix(in srgb, var(--week-color, var(--bar)) 22%, var(--surface)) !important;
+    text-align:center !important;border-right:1px solid var(--line) !important;
+    padding:6px 4px !important;min-width:76px;
+  }
+  .planning-day-th.planning-week-current{background:var(--accent-soft) !important;}
+  .planning-day-date{font-family:'Manrope',sans-serif;font-weight:700;font-size:11px;color:var(--ink);}
+  .planning-day-name{font-size:9.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;margin-top:1px;}
+  .planning-add-th{width:36px !important;text-align:center !important;padding:0 !important;}
+  .planning-add-btn{
+    width:26px;height:26px;border-radius:7px;border:1px dashed rgba(255,255,255,.4);
+    background:transparent;color:#fff;font-size:15px;line-height:1;cursor:pointer;
+  }
+  .planning-add-btn:hover{background:rgba(255,255,255,.14);border-color:#fff;}
+  td.planning-cell{
+    min-width:76px;text-align:left;white-space:pre-wrap;font-size:12.5px;
+    border-right:1px solid var(--line);
+  }
+  td.planning-cell-collapsed{min-width:auto;width:28px;text-align:center;background:var(--bg);}
+  .planning-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);}
+  td.planning-cell-spacer{width:36px;padding:0;background:var(--bg);}
   tbody td{
     padding:9px 12px;
     border-bottom:1px solid var(--line);
@@ -774,7 +816,7 @@
 
     <div class="table-wrap">
       <table id="registryTable-projects">
-        <thead><tr id="headRow-projects"></tr></thead>
+        <thead><tr id="headRow-projects"></tr><tr id="headRow2-projects" class="planning-subheader-row"></tr></thead>
         <tbody id="tableBody-projects"></tbody>
       </table>
     </div>
@@ -1351,6 +1393,7 @@
       globalNumbering: !!opts.globalNumbering,
       crossSectionDrag: !!opts.crossSectionDrag,
       productOptions: opts.productOptions || null,
+      hasPlanning: !!opts.hasPlanning,
       excludeSections: opts.excludeSections || [],
       sectionKeys: opts.sectionKeys.slice(),
       defaults: {
@@ -1369,10 +1412,14 @@
     opts.sectionKeys.forEach(function(key){
       c.state[key] = clone(opts.sectionDefaults[key]);
     });
+    if(c.hasPlanning){
+      c.state.planningWeeks = defaultPlanningWeeks();
+    }
     c.persistColumns = function(){ persist(c.storagePrefix + '-columns', c.state.columns); };
     c.persistTitles = function(){ persist(c.storagePrefix + '-titles', c.state.titles); };
     c.persistSection = function(section){ persist(c.storagePrefix + '-' + section, c.state[section]); };
     c.persistSectionKeys = function(){ persist(c.storagePrefix + '-sectionkeys', c.sectionKeys); };
+    c.persistPlanningWeeks = function(){ persist(c.storagePrefix + '-planningweeks', c.state.planningWeeks); };
     controllers[opts.viewKey] = c;
     return c;
   }
@@ -1426,6 +1473,12 @@
         renumberAllSections(c);
         c.sectionKeys.forEach(function(key){ c.persistSection(key); });
       }
+      if(c.hasPlanning){
+        var pw = await loadValue(c.storagePrefix+'-planningweeks');
+        if(pw){
+          try{ var parsed = JSON.parse(pw); if(parsed && parsed.length) c.state.planningWeeks = parsed; }catch(e2){}
+        }
+      }
     }catch(e){ console.error('loadController failed for', c.viewKey, e); }
     render(c);
   }
@@ -1434,10 +1487,12 @@
   function renderHead(c){
     var tr = c.dom.headRow;
     tr.innerHTML = '';
+    if(c.dom.headRow2) c.dom.headRow2.innerHTML = '';
     c.state.columns.forEach(function(col){
       var th = document.createElement('th');
       th.draggable = true;
       th.dataset.colId = col.id;
+      if(c.hasPlanning) th.rowSpan = 2;
       var inner = document.createElement('div');
       inner.className = 'th-inner';
       var handle = document.createElement('span');
@@ -1503,8 +1558,10 @@
 
       tr.appendChild(th);
     });
+    if(c.hasPlanning) renderPlanningHeaders(c);
     var actionsTh = document.createElement('th');
     actionsTh.className = 'actions-th';
+    if(c.hasPlanning) actionsTh.rowSpan = 2;
     tr.appendChild(actionsTh);
   }
 
@@ -1654,6 +1711,7 @@
         }
         tr.appendChild(td);
       });
+      if(c.hasPlanning) buildPlanningRowCells(c, tr, r, sectionKey, rowIdx);
       var actionsTd = document.createElement('td');
       actionsTd.className = 'action-cell';
       var rowHandle = document.createElement('span');
@@ -2205,7 +2263,157 @@
     });
   }
 
-  // ================= Excel export (Реестр миграций / Текущие проекты) =================
+  // ================= Планирование (weekly planning grid, Projects tab) =================
+  var WEEKDAY_ABBR_MF = ['ПН','ВТ','СР','ЧТ','ПТ'];
+  var WEEK_COLOR_PALETTE = ['var(--stage-1)','var(--stage-2)','var(--stage-3)','#6A3FA0','#2E9E8E','#C77DC0','#9A5F0F','#4C86C7'];
+
+  function pad2(n){ return String(n).padStart(2,'0'); }
+  function isoDateKey(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+  function formatDMY(d){ return pad2(d.getDate())+'.'+pad2(d.getMonth()+1)+'.'+d.getFullYear(); }
+  function mondayOf(date){
+    var d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    var day = d.getDay();
+    var diff = (day === 0 ? -6 : 1 - day);
+    d.setDate(d.getDate() + diff);
+    return d;
+  }
+  function isoWeekNumber(date){
+    var d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    var dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  }
+  function weekDaysOf(mondayDate){
+    var days = [];
+    for(var i=0;i<5;i++){
+      var d = new Date(mondayDate.getFullYear(), mondayDate.getMonth(), mondayDate.getDate()+i);
+      days.push(d);
+    }
+    return days;
+  }
+  function isCurrentWeek(startKey){
+    return startKey === isoDateKey(mondayOf(new Date()));
+  }
+  function weekLabel(week){
+    var d = new Date(week.start + 'T00:00:00');
+    return 'Неделя ' + isoWeekNumber(d);
+  }
+  function defaultPlanningWeeks(){
+    return [{ start: isoDateKey(mondayOf(new Date())), collapsed: false, colorIdx: -1 }];
+  }
+
+  function addPlanningWeek(c){
+    var weeks = c.state.planningWeeks;
+    var last = weeks[weeks.length - 1];
+    var lastMonday = new Date(last.start + 'T00:00:00');
+    var nextMonday = new Date(lastMonday.getFullYear(), lastMonday.getMonth(), lastMonday.getDate() + 7);
+    var usedColorIdx = weeks.filter(function(w){ return w.colorIdx >= 0; }).length;
+    weeks.push({ start: isoDateKey(nextMonday), collapsed: false, colorIdx: usedColorIdx % WEEK_COLOR_PALETTE.length });
+    c.persistPlanningWeeks();
+    render(c);
+  }
+
+  function togglePlanningWeek(c, idx){
+    var week = c.state.planningWeeks[idx];
+    if(!week) return;
+    week.collapsed = !week.collapsed;
+    c.persistPlanningWeeks();
+    render(c);
+  }
+
+  function renderPlanningHeaders(c, colCountBase){
+    var row1 = c.dom.headRow;
+    var row2 = c.dom.headRow2;
+    if(!c.hasPlanning || !row2) return;
+    row2.innerHTML = '';
+    c.state.planningWeeks.forEach(function(week, wIdx){
+      var current = isCurrentWeek(week.start);
+      var color = current ? 'var(--accent)' : (week.colorIdx >= 0 ? WEEK_COLOR_PALETTE[week.colorIdx] : 'var(--ink-soft)');
+      var groupTh = document.createElement('th');
+      groupTh.className = 'planning-week-th' + (current ? ' planning-week-current' : '');
+      groupTh.style.setProperty('--week-color', color);
+      if(week.collapsed){
+        groupTh.rowSpan = 2;
+      } else {
+        groupTh.colSpan = 5;
+      }
+      var inner = document.createElement('div');
+      inner.className = 'planning-week-inner';
+      var toggleBtn = document.createElement('button');
+      toggleBtn.type = 'button';
+      toggleBtn.className = 'planning-toggle';
+      toggleBtn.title = week.collapsed ? 'Развернуть неделю' : 'Свернуть неделю';
+      toggleBtn.textContent = week.collapsed ? '▸' : '▾';
+      (function(idx){ toggleBtn.addEventListener('click', function(){ togglePlanningWeek(c, idx); }); })(wIdx);
+      var labelSpan = document.createElement('span');
+      labelSpan.textContent = weekLabel(week);
+      inner.appendChild(labelSpan);
+      inner.appendChild(toggleBtn);
+      groupTh.appendChild(inner);
+      row1.appendChild(groupTh);
+
+      if(!week.collapsed){
+        var monday = new Date(week.start + 'T00:00:00');
+        weekDaysOf(monday).forEach(function(d, di){
+          var dayTh = document.createElement('th');
+          dayTh.className = 'planning-day-th' + (current ? ' planning-week-current' : '');
+          dayTh.style.setProperty('--week-color', color);
+          dayTh.innerHTML = '<div class="planning-day-date">'+formatDMY(d)+'</div><div class="planning-day-name">'+WEEKDAY_ABBR_MF[di]+'</div>';
+          row2.appendChild(dayTh);
+        });
+      }
+    });
+    var addTh = document.createElement('th');
+    addTh.rowSpan = 2;
+    addTh.className = 'planning-add-th';
+    var addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'planning-add-btn';
+    addBtn.title = 'Добавить неделю';
+    addBtn.textContent = '+';
+    addBtn.addEventListener('click', function(){ addPlanningWeek(c); });
+    addTh.appendChild(addBtn);
+    row1.appendChild(addTh);
+  }
+
+  function planningCellCount(c){
+    var n = 0;
+    c.state.planningWeeks.forEach(function(w){ n += w.collapsed ? 1 : 5; });
+    return n + 1; // +1 for the add-week button column
+  }
+
+  function buildPlanningRowCells(c, tr, row, sectionKey, rowIdx){
+    if(!c.hasPlanning) return;
+    if(!row.planning) row.planning = {};
+    c.state.planningWeeks.forEach(function(week){
+      if(week.collapsed){
+        var td = document.createElement('td');
+        td.className = 'planning-cell planning-cell-collapsed';
+        var hasData = weekDaysOf(new Date(week.start + 'T00:00:00')).some(function(d){ return row.planning[isoDateKey(d)]; });
+        if(hasData) td.innerHTML = '<span class="planning-dot"></span>';
+        tr.appendChild(td);
+        return;
+      }
+      var monday = new Date(week.start + 'T00:00:00');
+      weekDaysOf(monday).forEach(function(d){
+        var key = isoDateKey(d);
+        var td = document.createElement('td');
+        td.className = 'planning-cell editable';
+        td.dataset.kind = 'planning';
+        td.dataset.view = c.viewKey;
+        td.dataset.section = sectionKey;
+        td.dataset.row = rowIdx;
+        td.dataset.dateKey = key;
+        td.textContent = row.planning[key] || '';
+        tr.appendChild(td);
+      });
+    });
+    var spacerTd = document.createElement('td');
+    spacerTd.className = 'planning-cell-spacer';
+    tr.appendChild(spacerTd);
+  }
+
   function sanitizeSheetName(name){
     var s = (name || 'Данные').replace(/[:\\\/\?\*\[\]]/g, ' ').trim();
     return (s || 'Данные').slice(0, 31);
@@ -2757,6 +2965,15 @@
       } else {
         cell.textContent = text;
       }
+    } else if(kind === 'planning'){
+      var pSection = cell.dataset.section, pRow = cell.dataset.row, pDateKey = cell.dataset.dateKey;
+      var pRowObj = controller.state[pSection][pRow];
+      if(pRowObj){
+        if(!pRowObj.planning) pRowObj.planning = {};
+        pRowObj.planning[pDateKey] = text;
+        controller.persistSection(pSection);
+      }
+      cell.textContent = text;
     }
   }
 
@@ -3208,6 +3425,7 @@
     storagePrefix: 'projects',
     dom: {
       headRow: document.getElementById('headRow-projects'),
+      headRow2: document.getElementById('headRow2-projects'),
       tableBody: document.getElementById('tableBody-projects'),
       pipeline: document.getElementById('pipeline-projects')
     },
@@ -3217,6 +3435,7 @@
     showAddRowButton: false,
     globalNumbering: true,
     crossSectionDrag: true,
+    hasPlanning: true,
     excludeSections: ['hybrid','pak'],
     dateFields: ['deadline'],
     linkFields: ['confluenceLink','crmLink'],
