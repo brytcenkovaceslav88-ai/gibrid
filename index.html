@@ -1250,7 +1250,6 @@
     {id:'project', label:'Клиент / проект'},
     {id:'block', label:'Блок'},
     {id:'product', label:'Продукт'},
-    {id:'type', label:'Тип'},
     {id:'priority', label:'Приоритет'},
     {id:'responsible', label:'Ответственный РП'},
     {id:'tbResponsible', label:'Ответственный от ТБ'},
@@ -1258,16 +1257,11 @@
     {id:'status', label:'Статус'},
     {id:'goals', label:'Цели'},
     {id:'deadline', label:'Сроки'},
-    {id:'jiraLink', label:'Jira-таск'},
     {id:'nda', label:'NDA'},
-    {id:'testContract', label:'Договор на тестирование'},
-    {id:'testDelivery', label:'Поставка на тест/апробацию'},
-    {id:'purchaseContract', label:'Договор на покупку'},
     {id:'contacts', label:'Контакты'},
     {id:'tasks', label:'Задачи'},
     {id:'comment', label:'Комментарий'},
     {id:'confluenceLink', label:'Confluence'},
-    {id:'crmLink', label:'Сделка CRM'},
     {id:'questionnaire', label:'Опросники'}
   ];
   var PROJECTS_TITLES_DEFAULT = { oilgas: 'Нефтегаз', actiontasks: 'Активные задачи' };
@@ -1395,6 +1389,7 @@
       productOptions: opts.productOptions || null,
       hasPlanning: !!opts.hasPlanning,
       excludeSections: opts.excludeSections || [],
+      excludeColumns: opts.excludeColumns || [],
       sectionKeys: opts.sectionKeys.slice(),
       defaults: {
         columns: opts.columnsDefault,
@@ -1436,6 +1431,13 @@
         });
         c.state.columns = savedColumns;
       }
+      if(c.excludeColumns.length){
+        var stripCols = c.state.columns.filter(function(col){ return c.excludeColumns.indexOf(col.id) !== -1; });
+        if(stripCols.length){
+          c.state.columns = c.state.columns.filter(function(col){ return c.excludeColumns.indexOf(col.id) === -1; });
+          c.persistColumns();
+        }
+      }
       var t = await loadValue(c.storagePrefix+'-titles');
       if(t){
         var savedTitles = JSON.parse(t);
@@ -1468,6 +1470,17 @@
         if(s) c.state[key] = JSON.parse(s);
         else if(!c.state[key]) c.state[key] = [];
         if(!c.state.titles[key]) c.state.titles[key] = 'Новый раздел';
+      }
+      if(c.excludeColumns.length){
+        c.sectionKeys.forEach(function(key){
+          var touchedAny = false;
+          (c.state[key] || []).forEach(function(r){
+            c.excludeColumns.forEach(function(colId){
+              if(Object.prototype.hasOwnProperty.call(r, colId)){ delete r[colId]; touchedAny = true; }
+            });
+          });
+          if(touchedAny) c.persistSection(key);
+        });
       }
       if(c.globalNumbering){
         renumberAllSections(c);
@@ -3437,6 +3450,7 @@
     crossSectionDrag: true,
     hasPlanning: true,
     excludeSections: ['hybrid','pak'],
+    excludeColumns: ['type','testContract','testDelivery','purchaseContract','crmLink','jiraLink'],
     dateFields: ['deadline'],
     linkFields: ['confluenceLink','crmLink'],
     chipFields: {
