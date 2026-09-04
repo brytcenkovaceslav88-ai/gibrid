@@ -1010,6 +1010,12 @@
     return String(idx % 5);
   }
   var PRIORITY_OPTIONS = ['Высокий', 'Средний', 'Низкий'];
+  var TB_RESPONSIBLE_OPTIONS = ['Марк Прихно', 'Галина Исрафилова', 'Виталий Смирнов', 'Дарья Саморукова', 'Не назначен - Дмитрий Максимов'];
+  function tbResponsibleClass(v){
+    var idx = TB_RESPONSIBLE_OPTIONS.indexOf(v);
+    if(idx === -1) return 'x';
+    return String(idx % 5);
+  }
   function priorityClass(v){
     var s = (v||'').trim().toLowerCase();
     if(s === 'высокий') return 'comp1';
@@ -1245,6 +1251,7 @@
       showAddRowButton: opts.showAddRowButton !== false,
       globalNumbering: !!opts.globalNumbering,
       crossSectionDrag: !!opts.crossSectionDrag,
+      productOptions: opts.productOptions || null,
       excludeSections: opts.excludeSections || [],
       sectionKeys: opts.sectionKeys.slice(),
       defaults: {
@@ -1785,7 +1792,7 @@
 
     var productGroups = withClassifier(groupByField(all, 'product'), productClass);
     var priorityGroups = withClassifier(groupByField(all, 'priority'), priorityClass);
-    var typeGroups = withPalette(groupByField(all, 'type'));
+    var tbGroups = withPalette(groupByField(all, 'tbResponsible'));
     var statusGroups = withPalette(groupByField(all, 'status'));
     var respGroups = withPalette(groupByField(all, 'responsible'));
 
@@ -1800,7 +1807,7 @@
     el.innerHTML = '<div class="donut-grid">'
       + renderDonutCard('Продукт', productGroups)
       + renderDonutCard('Приоритет', priorityGroups)
-      + renderDonutCard('Тип', typeGroups)
+      + renderDonutCard('Ответственный от ТБ', tbGroups)
       + renderDonutCard('NDA', ndaGroups)
       + renderDonutCard('Статус', statusGroups)
       + renderDonutCard('Ответственный РП', respGroups)
@@ -1883,7 +1890,7 @@
         var cardsSpec = [
           ['Продукт', withClassifierHex(groupByField(all, 'product'), productClass)],
           ['Приоритет', withClassifierHex(groupByField(all, 'priority'), priorityClass)],
-          ['Тип', withPaletteHex(groupByField(all, 'type'))],
+          ['Ответственный от ТБ', withPaletteHex(groupByField(all, 'tbResponsible'))],
           ['NDA', withPaletteHex(Object.keys(ndaCounts2).map(function(k){ return {label:k, count:ndaCounts2[k]}; }).filter(function(g){ return g.count > 0; }))],
           ['Статус', withPaletteHex(groupByField(all, 'status'))],
           ['Ответственный РП', withPaletteHex(groupByField(all, 'responsible'))]
@@ -2558,7 +2565,7 @@
 
     var list = document.createElement('div');
     list.className = 'popover-list';
-    PRODUCTS.forEach(function(p){
+    (controller.productOptions || PRODUCTS).forEach(function(p){
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'status-option badge-' + p.cls;
@@ -2823,8 +2830,10 @@
     dateFields: ['deadline'],
     linkFields: ['confluenceLink','crmLink'],
     chipFields: {
-      priority: {title: 'Приоритет', options: PRIORITY_OPTIONS, classFn: priorityClass, placeholder: '— не указан —'}
+      priority: {title: 'Приоритет', options: PRIORITY_OPTIONS, classFn: priorityClass, placeholder: '— не указан —'},
+      tbResponsible: {title: 'Ответственный от ТБ', options: TB_RESPONSIBLE_OPTIONS, classFn: tbResponsibleClass, placeholder: '— не назначен —'}
     },
+    productOptions: [{key:'ПАК', cls:'3'}, {key:'Гибрид', cls:'4'}],
     columnsDefault: PROJECTS_COLUMNS_DEFAULT,
     titlesDefault: PROJECTS_TITLES_DEFAULT,
     sectionKeys: ['oilgas','actiontasks'],
