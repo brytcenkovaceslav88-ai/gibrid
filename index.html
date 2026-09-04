@@ -27,6 +27,7 @@
     --stage-4:#1E8E4A;
     --bar:#16211C;
     --bar-hover:rgba(255,255,255,.14);
+    --modal-bg:#FFFFFF;
   }
   html[data-theme="dark"]{
     --bg:#12160F;
@@ -46,6 +47,7 @@
     --stage-4:#3FBE72;
     --bar:#0A0E0B;
     --bar-hover:rgba(255,255,255,.10);
+    --modal-bg:#0B0F0B;
   }
   html{transition:background-color .2s ease;}
   *{box-sizing:border-box;}
@@ -170,12 +172,13 @@
   .questionnaire-btn-disabled{color:var(--ink-soft);cursor:not-allowed;opacity:.7;}
 
   .qm-overlay{
-    position:fixed;inset:0;background:rgba(22,33,28,.5);z-index:200;
+    position:fixed;inset:0;background:rgba(6,10,7,.65);z-index:200;
     display:flex;align-items:center;justify-content:center;padding:24px;
   }
   .qm-modal{
-    background:var(--surface);border-radius:14px;box-shadow:0 20px 60px rgba(22,33,28,.35);
+    background:var(--modal-bg);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.45);
     width:100%;max-width:760px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;
+    border:1px solid var(--line);
   }
   .qm-header{
     display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
