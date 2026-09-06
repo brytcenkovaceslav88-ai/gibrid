@@ -13,7 +13,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - name: Query kv_store on server
+      - name: Query server state
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -21,21 +21,12 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             cd /opt/pmo/deploy
-            echo "--- ALL keys in kv_store ---"
-            docker compose exec -T postgres psql -U pmo -d pmo -c "SELECT key, updated_at FROM kv_store ORDER BY updated_at DESC;"
-            echo "--- projects-oilgas: num/project/product/tbResponsible, first 8 rows in stored order ---"
-            docker compose exec -T postgres psql -U pmo -d pmo -c "
-              SELECT ord, elem->>'num' AS num, elem->>'project' AS project, elem->>'product' AS product, elem->>'tbResponsible' AS tbResponsible
-              FROM kv_store, jsonb_array_elements(value) WITH ORDINALITY AS t(elem, ord)
-              WHERE key='projects-oilgas'
-              ORDER BY ord
-              LIMIT 8;
-            "
-            echo "--- projects-actiontasks: num/project/product/tbResponsible, first 8 rows in stored order ---"
-            docker compose exec -T postgres psql -U pmo -d pmo -c "
-              SELECT ord, elem->>'num' AS num, elem->>'project' AS project, elem->>'product' AS product, elem->>'tbResponsible' AS tbResponsible
-              FROM kv_store, jsonb_array_elements(value) WITH ORDINALITY AS t(elem, ord)
-              WHERE key='projects-actiontasks'
-              ORDER BY ord
-              LIMIT 8;
-            "
+            echo "--- backend container status ---"
+            docker compose ps backend
+            echo "--- backend logs (last 30 lines) ---"
+            docker compose logs --tail=30 backend
+            echo "--- users table ---"
+            docker compose exec -T postgres psql -U pmo -d pmo -c "SELECT id, email, status, is_admin FROM users;" 2>&1
+            echo "--- API smoke test: /api/auth/me without cookie ---"
+            curl -s http://localhost/api/auth/me
+            echo ""
