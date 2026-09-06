@@ -21,5 +21,11 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             cd /opt/pmo/deploy
-            echo "--- kv_store keys ---"
-            docker compose exec -T postgres psql -U pmo -d pmo -c "SELECT key, updated_at, left(value::text, 200) AS value_preview FROM kv_store ORDER BY updated_at DESC;"
+            echo "--- projects-actiontasks: num/project/product/tbResponsible for first rows ---"
+            docker compose exec -T postgres psql -U pmo -d pmo -c "
+              SELECT elem->>'num' AS num, elem->>'project' AS project, elem->>'product' AS product, elem->>'tbResponsible' AS tbResponsible
+              FROM kv_store, jsonb_array_elements(value) AS elem
+              WHERE key='projects-actiontasks'
+              ORDER BY (elem->>'num')::int
+              LIMIT 5;
+            "
