@@ -497,30 +497,35 @@
   tbody tr:hover td{background:var(--bg);}
   .col-num{width:44px;box-sizing:border-box;padding-left:4px;padding-right:4px;text-align:center;color:var(--ink-soft);font-weight:600;}
   th.th-num{width:44px;box-sizing:border-box;}
-  /* Table uses border-collapse:separate (see comment near the base `table`
-     rule) so position:sticky renders correctly; these two pinned columns
-     draw their own edge via box-shadow since border-right is per-cell here. */
+  /* Two frozen columns. --pin-project-left is the measured width of the №
+     column (see syncPinnedColumnOffsets) — table layout decides that width at
+     runtime, and a hardcoded offset left a hairline band between the two
+     frozen columns that the scrolling columns underneath showed through.
+     The № cell also casts a solid outer shadow of its own background colour
+     to the right, so any residual sub-pixel seam is filled with the pinned
+     background instead of scrolled content. */
   td.col-num,
   td[data-field="project"]{
     position:sticky;z-index:1;background:var(--surface);
-    border-right:none !important;box-shadow:inset -1px 0 0 var(--line);
-    /* Promote each pinned cell to its own compositor layer — without this,
-       Chromium/WebKit can repaint a sticky table cell a frame late during
-       scroll, letting the column scrolling underneath show through for an
-       instant (worse on trackpad/inertial scroll). */
-    transform:translateZ(0);backface-visibility:hidden;
+    border-right:none !important;
   }
-  td.col-num{left:0;}
-  td[data-field="project"]{left:44px;}
-  tbody tr:hover td.col-num,
+  td.col-num{left:0;box-shadow:2px 0 0 0 var(--surface);}
+  td[data-field="project"]{
+    left:var(--pin-project-left,44px);
+    box-shadow:inset 1px 0 0 var(--line), inset -1px 0 0 var(--line);
+  }
+  tbody tr:hover td.col-num{background:var(--bg);box-shadow:2px 0 0 0 var(--bg);}
   tbody tr:hover td[data-field="project"]{background:var(--bg);}
   th.th-num,
   th[data-col-id="project"]{
     position:sticky;left:0;z-index:4;background:var(--bar);
-    border-right:none !important;box-shadow:inset -1px 0 0 rgba(255,255,255,.08);
-    transform:translateZ(0);backface-visibility:hidden;
+    border-right:none !important;
   }
-  th[data-col-id="project"]{left:44px;}
+  th.th-num{box-shadow:2px 0 0 0 var(--bar);}
+  th[data-col-id="project"]{
+    left:var(--pin-project-left,44px);
+    box-shadow:inset 1px 0 0 rgba(255,255,255,.08), inset -1px 0 0 rgba(255,255,255,.08);
+  }
   .section-row td{
     background:var(--bar);
     color:#fff;
@@ -1970,6 +1975,27 @@
     }
   }
 
+  // The frozen "Клиент / проект" column must start exactly where the frozen
+  // "№" column ends. Only the layout engine knows that width, so publish it as
+  // a custom property the sticky rules read instead of guessing an offset.
+  var pinWidthObserver = window.ResizeObserver ? new ResizeObserver(function(){ syncPinnedColumnOffsets(); }) : null;
+  function syncPinnedColumnOffsets(){
+    document.querySelectorAll('th.th-num').forEach(function(th){
+      var table = th.closest('table');
+      if(!table) return;
+      if(pinWidthObserver && !th.dataset.pinObserved){
+        th.dataset.pinObserved = '1';
+        pinWidthObserver.observe(th);
+      }
+      var w = th.getBoundingClientRect().width;
+      if(!w) return; // hidden tab — measured again once it becomes visible
+      // Floor it: rounding up would reopen the very gap this closes.
+      var value = Math.floor(w) + 'px';
+      if(table.style.getPropertyValue('--pin-project-left') === value) return;
+      table.style.setProperty('--pin-project-left', value);
+    });
+  }
+
   function render(c){
     renderHead(c);
     var tbody = c.dom.tableBody;
@@ -1978,6 +2004,7 @@
     if(c.donutSummary) renderProjectsDonutSummary(c);
     else if(c.hasPipeline) renderPipeline(c);
     applyFilters(c);
+    syncPinnedColumnOffsets();
   }
 
   function renderPipeline(c){
@@ -3966,8 +3993,11 @@
       document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
       document.getElementById('view-' + btn.dataset.tab).classList.add('active');
       closePopover();
+      syncPinnedColumnOffsets(); // the table of a hidden tab measures 0
     });
   });
+
+  window.addEventListener('resize', syncPinnedColumnOffsets);
 
   var pmoAppStarted = false;
   window.__pmoIsAdmin = false;
