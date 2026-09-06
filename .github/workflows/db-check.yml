@@ -13,7 +13,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - name: Query kv_store on server
+      - name: Query kv_store and test API on server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -21,7 +21,16 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             cd /opt/pmo/deploy
+            echo "--- frontend/index.html has new storage code? ---"
+            grep -c "apiSetValue" frontend/index.html || echo "NOT FOUND"
+            echo "--- backend container running? ---"
+            docker compose ps backend
+            echo "--- direct API test: PUT then GET ---"
+            curl -s -X PUT http://localhost/api/data/__diag_test__ -H "Content-Type: application/json" -d '{"value":"hello from diag"}'
+            echo ""
+            curl -s http://localhost/api/data/__diag_test__
+            echo ""
+            echo "--- backend logs (last 30 lines) ---"
+            docker compose logs --tail=30 backend
             echo "--- kv_store row count ---"
             docker compose exec -T postgres psql -U pmo -d pmo -t -c "SELECT count(*) FROM kv_store;"
-            echo "--- kv_store keys + updated_at ---"
-            docker compose exec -T postgres psql -U pmo -d pmo -c "SELECT key, updated_at, length(value::text) AS value_len FROM kv_store ORDER BY updated_at DESC;"
