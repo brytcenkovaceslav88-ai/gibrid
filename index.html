@@ -424,7 +424,10 @@
   .planning-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);}
   td.planning-cell-spacer{width:36px;padding:0;background:var(--bg);}
   td.planning-cell-tasks{padding:6px !important;vertical-align:top;}
-  .planning-task-list{display:flex;flex-direction:column;gap:4px;margin-bottom:4px;}
+  .planning-task-list{
+    display:flex;flex-direction:column;gap:4px;margin-bottom:4px;
+    max-height:120px;overflow-y:auto;
+  }
   .planning-task-chip{
     display:flex;align-items:flex-start;gap:5px;padding:3px 6px;border-radius:6px;
     background:var(--bg);cursor:pointer;font-size:11.5px;line-height:1.3;max-width:100%;
@@ -476,14 +479,23 @@
   tbody tr:hover td{background:var(--bg);}
   .col-num{width:44px;box-sizing:border-box;padding-left:4px;padding-right:4px;text-align:center;color:var(--ink-soft);font-weight:600;}
   th.th-num{width:44px;box-sizing:border-box;}
+  /* border-collapse breaks native borders on sticky cells (gaps/bleed-through
+     while scrolling), so these two pinned columns draw their own edge via
+     box-shadow instead of relying on the collapsed table border. */
   td.col-num,
-  td[data-field="project"]{position:sticky;z-index:1;background:var(--surface);}
+  td[data-field="project"]{
+    position:sticky;z-index:1;background:var(--surface);
+    border-right:none !important;box-shadow:inset -1px 0 0 var(--line);
+  }
   td.col-num{left:0;}
   td[data-field="project"]{left:44px;}
   tbody tr:hover td.col-num,
   tbody tr:hover td[data-field="project"]{background:var(--bg);}
   th.th-num,
-  th[data-col-id="project"]{position:sticky;left:0;z-index:4;}
+  th[data-col-id="project"]{
+    position:sticky;left:0;z-index:4;background:var(--bar);
+    border-right:none !important;box-shadow:inset -1px 0 0 rgba(255,255,255,.08);
+  }
   th[data-col-id="project"]{left:44px;}
   .section-row td{
     background:var(--bar);
