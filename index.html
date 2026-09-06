@@ -426,16 +426,16 @@
   td.planning-cell-tasks{padding:6px !important;vertical-align:top;}
   .planning-task-list{display:flex;flex-direction:column;gap:4px;margin-bottom:4px;}
   .planning-task-chip{
-    display:flex;align-items:center;gap:5px;padding:3px 6px;border-radius:6px;
-    background:var(--bg);cursor:pointer;font-size:11.5px;line-height:1.3;
+    display:flex;align-items:flex-start;gap:5px;padding:3px 6px;border-radius:6px;
+    background:var(--bg);cursor:pointer;font-size:11.5px;line-height:1.3;max-width:100%;
   }
   .planning-task-chip:hover{background:var(--accent-soft);}
-  .planning-task-dot{flex-shrink:0;width:8px;height:8px;border-radius:50%;}
+  .planning-task-dot{flex-shrink:0;width:8px;height:8px;border-radius:50%;margin-top:3px;}
   .planning-task-dot-progress{background:#2E9E4A;}
   .planning-task-dot-not_started{background:#9AA39B;}
   .planning-task-dot-done{background:#4C86C7;}
-  .planning-task-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);}
-  .planning-task-time{flex-shrink:0;font-size:10.5px;color:var(--ink-soft);white-space:nowrap;}
+  .planning-task-name{flex:1;min-width:0;white-space:pre-line;word-break:break-word;color:var(--ink);}
+  .planning-task-time{flex-shrink:0;font-size:10.5px;color:var(--ink-soft);white-space:nowrap;margin-top:1px;}
   .planning-task-add{
     display:block;width:100%;border:1px dashed var(--line);background:transparent;
     color:var(--ink-soft);border-radius:6px;font-size:13px;line-height:1;padding:3px 0;cursor:pointer;
@@ -474,7 +474,17 @@
   }
   tbody td:last-child{border-right:none;}
   tbody tr:hover td{background:var(--bg);}
-  .col-num{width:38px;text-align:center;color:var(--ink-soft);font-weight:600;}
+  .col-num{width:44px;box-sizing:border-box;padding-left:4px;padding-right:4px;text-align:center;color:var(--ink-soft);font-weight:600;}
+  th.th-num{width:44px;box-sizing:border-box;}
+  td.col-num,
+  td[data-field="project"]{position:sticky;z-index:1;background:var(--surface);}
+  td.col-num{left:0;}
+  td[data-field="project"]{left:44px;}
+  tbody tr:hover td.col-num,
+  tbody tr:hover td[data-field="project"]{background:var(--bg);}
+  th.th-num,
+  th[data-col-id="project"]{position:sticky;left:0;z-index:4;}
+  th[data-col-id="project"]{left:44px;}
   .section-row td{
     background:var(--bar);
     color:#fff;
@@ -1653,40 +1663,49 @@
     var tr = c.dom.headRow;
     tr.innerHTML = '';
     if(c.dom.headRow2) c.dom.headRow2.innerHTML = '';
+    var isAdmin = !!window.__pmoIsAdmin;
     c.state.columns.forEach(function(col){
+      var isPinned = (col.id === 'num' || col.id === 'project');
       var th = document.createElement('th');
-      th.draggable = true;
+      th.draggable = isAdmin && !isPinned;
       th.dataset.colId = col.id;
+      if(col.id === 'num') th.classList.add('th-num');
       if(c.hasPlanning) th.rowSpan = 2;
       var inner = document.createElement('div');
       inner.className = 'th-inner';
-      var handle = document.createElement('span');
-      handle.className = 'col-drag-handle';
-      handle.title = 'Перетащить колонку';
-      handle.textContent = '⠿';
       var label = document.createElement('span');
       label.className = 'editable th-label';
       label.textContent = col.label;
       label.dataset.kind = 'header';
       label.dataset.colId = col.id;
       label.dataset.view = c.viewKey;
-      var del = document.createElement('button');
-      del.className = 'col-del';
-      del.type = 'button';
-      del.title = 'Удалить колонку';
-      del.textContent = '×';
-      del.addEventListener('click', function(ev){ ev.stopPropagation(); deleteColumn(c, col.id, col.label); });
-      var filterBtn = document.createElement('button');
-      filterBtn.className = 'col-filter-btn';
-      filterBtn.type = 'button';
-      filterBtn.title = 'Фильтр по колонке';
-      filterBtn.innerHTML = '<svg viewBox="0 0 16 16" width="11" height="11"><path d="M1 2h14l-5.3 6.1v4.4l-3.4 1.9V8.1z" fill="currentColor"/></svg>';
-      if(c.columnFilters[col.id]) filterBtn.classList.add('filter-active');
-      filterBtn.addEventListener('click', function(ev){ ev.stopPropagation(); openColumnFilter(th, c, col); });
-      inner.appendChild(handle);
+      if(isAdmin && !isPinned){
+        var handle = document.createElement('span');
+        handle.className = 'col-drag-handle';
+        handle.title = 'Перетащить колонку';
+        handle.textContent = '⠿';
+        inner.appendChild(handle);
+      }
       inner.appendChild(label);
-      inner.appendChild(filterBtn);
-      inner.appendChild(del);
+      if(col.id !== 'num'){
+        var filterBtn = document.createElement('button');
+        filterBtn.className = 'col-filter-btn';
+        filterBtn.type = 'button';
+        filterBtn.title = 'Фильтр по колонке';
+        filterBtn.innerHTML = '<svg viewBox="0 0 16 16" width="11" height="11"><path d="M1 2h14l-5.3 6.1v4.4l-3.4 1.9V8.1z" fill="currentColor"/></svg>';
+        if(c.columnFilters[col.id]) filterBtn.classList.add('filter-active');
+        filterBtn.addEventListener('click', function(ev){ ev.stopPropagation(); openColumnFilter(th, c, col); });
+        inner.appendChild(filterBtn);
+      }
+      if(isAdmin && col.id !== 'num'){
+        var del = document.createElement('button');
+        del.className = 'col-del';
+        del.type = 'button';
+        del.title = 'Удалить колонку';
+        del.textContent = '×';
+        del.addEventListener('click', function(ev){ ev.stopPropagation(); deleteColumn(c, col.id, col.label); });
+        inner.appendChild(del);
+      }
       th.appendChild(inner);
 
       th.addEventListener('dragstart', function(e){
@@ -1701,7 +1720,7 @@
         dragState = null;
       });
       th.addEventListener('dragover', function(e){
-        if(!dragState || dragState.viewKey !== c.viewKey || dragState.colId === col.id) return;
+        if(!dragState || dragState.viewKey !== c.viewKey || dragState.colId === col.id || isPinned) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         var rect = th.getBoundingClientRect();
@@ -1716,7 +1735,7 @@
         e.preventDefault();
         var wasAfter = th.classList.contains('col-drop-target-right');
         clearDropIndicators(c);
-        if(!dragState || dragState.viewKey !== c.viewKey || dragState.colId === col.id) return;
+        if(!dragState || dragState.viewKey !== c.viewKey || dragState.colId === col.id || isPinned) return;
         reorderColumn(c, dragState.colId, col.id, wasAfter);
         dragState = null;
       });
@@ -1748,6 +1767,7 @@
 
   function buildSection(c, tbody, sectionKey){
     var colCount = c.state.columns.length + 1;
+    var isAdmin = !!window.__pmoIsAdmin;
 
     if(c.showSectionTitles){
       var titleRow = document.createElement('tr');
@@ -1769,7 +1789,7 @@
       sectionDelBtn.textContent = '× Удалить раздел';
       sectionDelBtn.addEventListener('click', function(){ deleteSection(c, sectionKey, c.state.titles[sectionKey]); });
       titleInner.appendChild(titleLabel);
-      if(c.sectionKeys.length > 1) titleInner.appendChild(sectionDelBtn);
+      if(isAdmin && c.sectionKeys.length > 1) titleInner.appendChild(sectionDelBtn);
       titleCell.appendChild(titleInner);
       titleRow.appendChild(titleCell);
       tbody.appendChild(titleRow);
@@ -1779,7 +1799,7 @@
       var tr = document.createElement('tr');
       tr.dataset.section = sectionKey;
       tr.dataset.row = rowIdx;
-      tr.draggable = true;
+      tr.draggable = isAdmin;
 
       tr.addEventListener('dragstart', function(e){
         rowDragState = { viewKey: c.viewKey, section: sectionKey, rowIndex: rowIdx };
@@ -1879,18 +1899,20 @@
       if(c.hasPlanning) buildPlanningRowCells(c, tr, r, sectionKey, rowIdx);
       var actionsTd = document.createElement('td');
       actionsTd.className = 'action-cell';
-      var rowHandle = document.createElement('span');
-      rowHandle.className = 'row-drag-handle';
-      rowHandle.title = 'Перетащить строку';
-      rowHandle.textContent = '⠿';
-      var delBtn = document.createElement('button');
-      delBtn.className = 'row-del';
-      delBtn.type = 'button';
-      delBtn.title = 'Удалить строку';
-      delBtn.textContent = '×';
-      delBtn.addEventListener('click', function(){ deleteRow(c, sectionKey, rowIdx); });
-      actionsTd.appendChild(rowHandle);
-      actionsTd.appendChild(delBtn);
+      if(isAdmin){
+        var rowHandle = document.createElement('span');
+        rowHandle.className = 'row-drag-handle';
+        rowHandle.title = 'Перетащить строку';
+        rowHandle.textContent = '⠿';
+        var delBtn = document.createElement('button');
+        delBtn.className = 'row-del';
+        delBtn.type = 'button';
+        delBtn.title = 'Удалить строку';
+        delBtn.textContent = '×';
+        delBtn.addEventListener('click', function(){ deleteRow(c, sectionKey, rowIdx); });
+        actionsTd.appendChild(rowHandle);
+        actionsTd.appendChild(delBtn);
+      }
       tr.appendChild(actionsTd);
       tbody.appendChild(tr);
     });
@@ -2566,7 +2588,7 @@
       chip.appendChild(dot);
       var nameSpan = document.createElement('span');
       nameSpan.className = 'planning-task-name';
-      nameSpan.textContent = task.title || '(без названия)';
+      nameSpan.textContent = wrapPlanningTaskName(task.title || '(без названия)');
       chip.appendChild(nameSpan);
       if(task.status === 'done' && task.timeValue){
         var timeSpan = document.createElement('span');
@@ -2621,6 +2643,22 @@
   ];
 
   function newPlanningTaskId(){ return 'pt' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  function wrapPlanningTaskName(name, lineLen, maxLines){
+    lineLen = lineLen || 35;
+    maxLines = maxLines || 3;
+    var lines = [];
+    var s = name || '';
+    for(var i = 0; i < maxLines && s.length > 0; i++){
+      lines.push(s.slice(0, lineLen));
+      s = s.slice(lineLen);
+    }
+    if(s.length > 0 && lines.length){
+      var last = lines[lines.length - 1];
+      lines[lines.length - 1] = last.slice(0, Math.max(0, lineLen - 3)) + '...';
+    }
+    return lines.join('\n');
+  }
 
   function formatPlanningTaskTime(task){
     if(!task.timeValue) return '';
@@ -3887,6 +3925,7 @@
   });
 
   var pmoAppStarted = false;
+  window.__pmoIsAdmin = false;
   window.__pmoStartApp = function(){
     if(pmoAppStarted) return;
     pmoAppStarted = true;
@@ -4172,6 +4211,7 @@
       if(user.status === 'pending'){ showPending(); return; }
       if(user.status === 'blocked'){ showBlocked(); return; }
       hideGate();
+      window.__pmoIsAdmin = !!user.isAdmin;
       if(user.isAdmin){ adminBtn.classList.remove('pmo-auth-hidden'); }
       logoutBtn.classList.remove('pmo-auth-hidden');
       if(window.__pmoStartApp) window.__pmoStartApp();
