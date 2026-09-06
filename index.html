@@ -327,7 +327,12 @@
     overflow:auto;
     max-height:74vh;
   }
-  table{border-collapse:collapse;width:100%;min-width:1280px;font-size:13px;}
+  /* border-collapse breaks position:sticky rendering on table cells in most
+     browsers (the sticky column visually "unglues" during scroll and lets
+     content behind it show through) — separate + zero spacing keeps the same
+     single-line borders (each cell only sets border-right/border-bottom, never
+     the opposite sides) while letting sticky actually work. */
+  table{border-collapse:separate;border-spacing:0;width:100%;min-width:1280px;font-size:13px;}
   thead th{
     position:sticky;top:0;z-index:2;
     background:var(--bar);
@@ -425,22 +430,25 @@
   td.planning-cell-spacer{width:36px;padding:0;background:var(--bg);}
   td.planning-cell-tasks{padding:6px !important;vertical-align:top;}
   .planning-task-list{
-    display:flex;flex-direction:column;gap:4px;margin-bottom:4px;
-    max-height:120px;overflow-y:auto;
+    display:flex;flex-direction:row;flex-wrap:wrap;align-items:flex-start;gap:4px;margin-bottom:4px;
   }
   .planning-task-chip{
     display:flex;align-items:flex-start;gap:5px;padding:3px 6px;border-radius:6px;
-    background:var(--bg);cursor:pointer;font-size:11.5px;line-height:1.3;max-width:100%;
+    background:var(--bg);cursor:pointer;font-size:11.5px;line-height:1.3;
+    width:212px;flex:0 0 212px;box-sizing:border-box;overflow:hidden;
   }
   .planning-task-chip:hover{background:var(--accent-soft);}
   .planning-task-dot{flex-shrink:0;width:8px;height:8px;border-radius:50%;margin-top:3px;}
   .planning-task-dot-progress{background:#2E9E4A;}
   .planning-task-dot-not_started{background:#9AA39B;}
   .planning-task-dot-done{background:#4C86C7;}
-  .planning-task-name{flex:1;min-width:0;white-space:pre-line;word-break:break-word;color:var(--ink);}
+  .planning-task-name{
+    flex:1;min-width:0;white-space:pre-line;word-break:break-word;color:var(--ink);
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+  }
   .planning-task-time{flex-shrink:0;font-size:10.5px;color:var(--ink-soft);white-space:nowrap;margin-top:1px;}
   .planning-task-add{
-    display:block;width:100%;border:1px dashed var(--line);background:transparent;
+    display:inline-block;width:212px;box-sizing:border-box;border:1px dashed var(--line);background:transparent;
     color:var(--ink-soft);border-radius:6px;font-size:13px;line-height:1;padding:3px 0;cursor:pointer;
   }
   .planning-task-add:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);}
@@ -479,9 +487,9 @@
   tbody tr:hover td{background:var(--bg);}
   .col-num{width:44px;box-sizing:border-box;padding-left:4px;padding-right:4px;text-align:center;color:var(--ink-soft);font-weight:600;}
   th.th-num{width:44px;box-sizing:border-box;}
-  /* border-collapse breaks native borders on sticky cells (gaps/bleed-through
-     while scrolling), so these two pinned columns draw their own edge via
-     box-shadow instead of relying on the collapsed table border. */
+  /* Table uses border-collapse:separate (see comment near the base `table`
+     rule) so position:sticky renders correctly; these two pinned columns
+     draw their own edge via box-shadow since border-right is per-cell here. */
   td.col-num,
   td[data-field="project"]{
     position:sticky;z-index:1;background:var(--surface);
@@ -861,6 +869,7 @@
     border:1px solid var(--line); background:var(--surface); color:var(--ink);
     padding:4px 9px; border-radius:6px; font-size:12px; cursor:pointer; margin-right:4px; margin-bottom:4px;
   }
+  .pmo-admin-action-danger{ border-color:var(--risk-ink); color:var(--risk-ink); background:var(--risk-bg); }
   .pmo-admin-close{ margin-top:16px; }
 </style>
 </head>
@@ -4184,6 +4193,12 @@
       pwBtn.type = 'button'; pwBtn.className = 'pmo-admin-action-btn'; pwBtn.textContent = 'Сменить пароль';
       pwBtn.addEventListener('click', function(){ changeUserPassword(u.id); });
       tdActions.appendChild(pwBtn);
+      if(!u.is_admin){
+        var delBtn = document.createElement('button');
+        delBtn.type = 'button'; delBtn.className = 'pmo-admin-action-btn pmo-admin-action-danger'; delBtn.textContent = 'Удалить';
+        delBtn.addEventListener('click', function(){ deleteUser(u.id, u.email); });
+        tdActions.appendChild(delBtn);
+      }
       tr.appendChild(tdEmail); tr.appendChild(tdStatus); tr.appendChild(tdActions);
       adminUsersBody.appendChild(tr);
     });
@@ -4203,6 +4218,14 @@
     if(pw.length < 6){ window.alert('Пароль слишком короткий'); return; }
     apiCall('/api/admin/users/' + id + '/password', { method:'POST', body: JSON.stringify({ password: pw }) })
       .then(function(res){ window.alert(res.ok ? 'Пароль обновлён' : 'Ошибка'); });
+  }
+  function deleteUser(id, email){
+    if(!window.confirm('Удалить пользователя ' + email + '? Это действие необратимо.')) return;
+    apiCall('/api/admin/users/' + id, { method:'DELETE' })
+      .then(function(res){
+        if(res.ok) loadAdminUsers();
+        else window.alert('Ошибка удаления');
+      });
   }
   adminBtn.addEventListener('click', function(){
     adminBackdrop.classList.remove('pmo-auth-hidden');

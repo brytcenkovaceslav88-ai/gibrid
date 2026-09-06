@@ -176,6 +176,15 @@ app.post("/api/admin/users/:id/password", requireAdmin, async (req, res) => {
   res.json({ ok: true });
 });
 
+app.delete("/api/admin/users/:id", requireAdmin, async (req, res) => {
+  const targetId = Number(req.params.id);
+  if (targetId === req.user.id) {
+    return res.status(400).json({ error: "cannot_delete_self" });
+  }
+  await pool.query("DELETE FROM users WHERE id = $1", [targetId]);
+  res.json({ ok: true });
+});
+
 // ---- Общее хранилище данных таблиц (реестры, проекты, требования и т.д.) ----
 // Доступно только активным пользователям — гейт на фронтенде дублируется
 // здесь, чтобы данные нельзя было прочитать/изменить в обход интерфейса.
