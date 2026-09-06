@@ -11,7 +11,6 @@ const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
 const JWT_SECRET = process.env.BETTER_AUTH_SECRET;
 const COOKIE_NAME = "pmo_session";
-const isHttps = (process.env.BETTER_AUTH_URL || "").startsWith("https");
 
 // ---- Схема БД ----
 async function ensureSchema() {
@@ -38,11 +37,15 @@ function signToken(user) {
   return jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: "30d" });
 }
 
-function setSessionCookie(res, token) {
+function setSessionCookie(req, res, token) {
+  // req.secure учитывает X-Forwarded-Proto (см. app.set('trust proxy', 1) ниже),
+  // поэтому cookie получает Secure только когда соединение реально по HTTPS —
+  // иначе браузер молча отбрасывает такую cookie на обычном HTTP и вход
+  // выглядит так, будто сессия не сохраняется.
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: isHttps,
+    secure: req.secure,
     maxAge: 30 * 24 * 60 * 60 * 1000
   });
 }
@@ -85,6 +88,7 @@ function publicUser(u) {
 
 // ---- Express-приложение ----
 const app = express();
+app.set("trust proxy", 1); // чтобы req.secure учитывал X-Forwarded-Proto от nginx
 app.use(cors({ origin: process.env.BETTER_AUTH_URL, credentials: true }));
 app.use(express.json({ limit: "5mb" }));
 app.use(cookieParser());
@@ -113,7 +117,7 @@ app.post("/api/auth/register", async (req, res) => {
     [normEmail, passwordHash, isFirstUser ? "active" : "pending", isFirstUser]
   );
   const user = rows[0];
-  if (isFirstUser) setSessionCookie(res, signToken(user));
+  if (isFirstUser) setSessionCookie(req, res, signToken(user));
   res.json({ user: publicUser(user) });
 });
 
@@ -131,7 +135,7 @@ app.post("/api/auth/login", async (req, res) => {
   }
   if (user.status === "blocked") return res.status(403).json({ error: "blocked" });
   if (user.status === "pending") return res.status(403).json({ error: "pending" });
-  setSessionCookie(res, signToken(user));
+  setSessionCookie(req, res, signToken(user));
   res.json({ user: publicUser(user) });
 });
 
