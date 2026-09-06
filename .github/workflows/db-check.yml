@@ -1,0 +1,21 @@
+name: Check database contents
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query kv_store on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /opt/pmo/deploy
+            echo "--- kv_store row count ---"
+            docker compose exec -T postgres psql -U pmo -d pmo -t -c "SELECT count(*) FROM kv_store;"
+            echo "--- kv_store keys + updated_at ---"
+            docker compose exec -T postgres psql -U pmo -d pmo -c "SELECT key, updated_at, length(value::text) AS value_len FROM kv_store ORDER BY updated_at DESC;"
