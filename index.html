@@ -752,6 +752,12 @@
     border-radius:9px; background:var(--bg); color:var(--ink); font-size:14px;
   }
   .pmo-auth-field input:focus{ outline:none; border-color:var(--accent); }
+  .pmo-auth-password-wrap{ position:relative; }
+  .pmo-auth-password-wrap input{ padding-right:40px; }
+  .pmo-auth-eye{
+    position:absolute; right:4px; top:50%; transform:translateY(-50%);
+    border:none; background:none; cursor:pointer; font-size:16px; padding:6px 8px; line-height:1;
+  }
   .pmo-auth-btn{
     width:100%; padding:11px; border:none; border-radius:9px; background:var(--accent);
     color:#fff; font-weight:600; font-size:14px; cursor:pointer; margin-top:6px;
@@ -3654,15 +3660,18 @@
   <div class="pmo-auth-card">
     <div id="pmoAuthFormWrap">
       <h2 id="pmoAuthTitle">Вход</h2>
-      <p class="pmo-sub" id="pmoAuthSub">Введите почту и пароль</p>
+      <p class="pmo-sub" id="pmoAuthSub">Введите логин и пароль</p>
       <div class="pmo-auth-error" id="pmoAuthError"></div>
       <div class="pmo-auth-field">
-        <label>Email</label>
-        <input type="email" id="pmoAuthEmail" autocomplete="username">
+        <label>Логин</label>
+        <input type="text" id="pmoAuthEmail" autocomplete="username">
       </div>
       <div class="pmo-auth-field">
         <label>Пароль</label>
-        <input type="password" id="pmoAuthPassword" autocomplete="current-password">
+        <div class="pmo-auth-password-wrap">
+          <input type="password" id="pmoAuthPassword" autocomplete="current-password">
+          <button type="button" class="pmo-auth-eye" id="pmoAuthEye" title="Показать пароль">👁</button>
+        </div>
       </div>
       <button class="pmo-auth-btn" id="pmoAuthSubmit" type="button">Войти</button>
       <div class="pmo-auth-switch">
@@ -3749,7 +3758,7 @@
     errorEl.textContent = '';
     if(m === 'login'){
       titleEl.textContent = 'Вход';
-      subEl.textContent = 'Введите почту и пароль';
+      subEl.textContent = 'Введите логин и пароль';
       submitBtn.textContent = 'Войти';
       toRegisterWrap.classList.remove('pmo-auth-hidden');
       toLoginWrap.classList.add('pmo-auth-hidden');
@@ -3779,7 +3788,7 @@
     var email = emailInput.value.trim();
     var password = passwordInput.value;
     errorEl.textContent = '';
-    if(!email || !password){ errorEl.textContent = 'Заполните почту и пароль'; return; }
+    if(!email || !password){ errorEl.textContent = 'Заполните логин и пароль'; return; }
     submitBtn.disabled = true;
     var url = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
     apiCall(url, { method:'POST', body: JSON.stringify({ email: email, password: password }) })
@@ -3797,9 +3806,9 @@
           showBlocked();
         } else {
           var msgs = {
-            invalid_input: 'Проверьте почту и пароль (пароль от 6 символов)',
-            email_taken: 'Такая почта уже зарегистрирована',
-            invalid_credentials: 'Неверная почта или пароль'
+            invalid_input: 'Проверьте логин и пароль (пароль от 6 символов)',
+            email_taken: 'Такой логин уже зарегистрирован',
+            invalid_credentials: 'Неверный логин или пароль'
           };
           errorEl.textContent = msgs[res.data.error] || 'Ошибка, попробуйте ещё раз';
         }
@@ -3811,6 +3820,14 @@
   }
   submitBtn.addEventListener('click', submitForm);
   passwordInput.addEventListener('keydown', function(e){ if(e.key === 'Enter') submitForm(); });
+
+  var eyeBtn = document.getElementById('pmoAuthEye');
+  eyeBtn.addEventListener('click', function(){
+    var showing = passwordInput.type === 'text';
+    passwordInput.type = showing ? 'password' : 'text';
+    eyeBtn.textContent = showing ? '👁' : '🙈';
+    eyeBtn.title = showing ? 'Показать пароль' : 'Скрыть пароль';
+  });
 
   function doLogout(){
     apiCall('/api/auth/logout', { method:'POST' }).then(function(){
