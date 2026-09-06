@@ -1,0 +1,27 @@
+name: Check database contents
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - main
+      - claude/deploy-project-domain-uji310
+    paths:
+      - ".github/workflows/db-check.yml"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query users table and backend logs
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /opt/pmo/deploy
+            echo "--- users table ---"
+            docker compose exec -T postgres psql -U pmo -d pmo -c "SELECT id, email, status, is_admin, length(password_hash) AS hash_len, created_at FROM users ORDER BY created_at;"
+            echo "--- backend logs (last 60 lines) ---"
+            docker compose logs --tail=60 backend
