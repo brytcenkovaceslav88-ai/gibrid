@@ -2,6 +2,12 @@ name: Check database contents
 
 on:
   workflow_dispatch: {}
+  push:
+    branches:
+      - main
+      - claude/deploy-project-domain-uji310
+    paths:
+      - ".github/workflows/db-check.yml"
 
 jobs:
   check:
