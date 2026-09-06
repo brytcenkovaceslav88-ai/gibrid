@@ -1328,24 +1328,52 @@
     catch(e){ return null; }
   }
 
+  // ---- Общий backend (Postgres через /api/data/:key) — данные видны всем по ссылке ----
+  function apiKeyUrl(key){ return '/api/data/' + encodeURIComponent(key); }
+  async function apiGetValue(key){
+    var res = await fetch(apiKeyUrl(key), { credentials: 'same-origin' });
+    if(res.status === 404) return undefined;
+    if(!res.ok) throw new Error('api get failed: ' + res.status);
+    var data = await res.json();
+    return JSON.stringify(data.value);
+  }
+  async function apiSetValue(key, json){
+    var res = await fetch(apiKeyUrl(key), {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      credentials: 'same-origin',
+      body: JSON.stringify({ value: JSON.parse(json) })
+    });
+    if(!res.ok) throw new Error('api set failed: ' + res.status);
+  }
+  async function apiDeleteValue(key){
+    var res = await fetch(apiKeyUrl(key), { method: 'DELETE', credentials: 'same-origin' });
+    if(!res.ok) throw new Error('api delete failed: ' + res.status);
+  }
+
   function persist(key, value){
     var json = JSON.stringify(value);
     if(hasWindowStorage){
       window.storage.set(key, json, false).then(function(){ flashSaved(); }).catch(function(e){
-        console.error('window.storage failed, falling back to localStorage', e);
-        if(localSet(key, json)) flashSaved(); else flashSaveFailed();
+        console.error('window.storage failed, falling back', e);
+        persistToApiOrLocal(key, json);
       });
-    } else if(localSet(key, json)){
-      flashSaved();
     } else {
-      flashSaveFailed();
+      persistToApiOrLocal(key, json);
     }
+  }
+  function persistToApiOrLocal(key, json){
+    apiSetValue(key, json).then(function(){ flashSaved(); }).catch(function(e){
+      console.error('backend save failed, falling back to localStorage', e);
+      if(localSet(key, json)) flashSaved(); else flashSaveFailed();
+    });
   }
   async function persistNow(key, value){
     var json = JSON.stringify(value);
     if(hasWindowStorage){
       try{ await window.storage.set(key, json, false); return; }catch(e){}
     }
+    try{ await apiSetValue(key, json); return; }catch(e){ console.error('backend save failed', e); }
     localSet(key, json);
   }
   async function loadValue(key){
@@ -1355,12 +1383,23 @@
         if(r && r.value) return r.value;
       }catch(e){}
     }
-    return localGet(key);
+    var apiValue, apiReachable = true;
+    try{ apiValue = await apiGetValue(key); }
+    catch(e){ apiReachable = false; console.error('backend load failed, falling back to localStorage', e); }
+    if(apiValue !== undefined) return apiValue;
+    var local = localGet(key);
+    if(apiReachable && local !== null){
+      // первая загрузка после подключения БД: поднимаем то, что раньше было
+      // сохранено только в этом браузере, чтобы оно стало видно всем по ссылке
+      apiSetValue(key, local).catch(function(e){ console.error('migration to backend failed', e); });
+    }
+    return local;
   }
   async function removeStorageKey(key){
     if(hasWindowStorage){
       try{ await window.storage.delete(key, false); }catch(e){}
     }
+    try{ await apiDeleteValue(key); }catch(e){ console.error('backend delete failed', e); }
     if(hasLocalStorage){
       try{ window.localStorage.removeItem(LOCAL_PREFIX + key); }catch(e){}
     }
