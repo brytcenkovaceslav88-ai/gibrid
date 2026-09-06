@@ -1,0 +1,44 @@
+name: Deploy to server
+
+on:
+  push:
+    branches:
+      - main
+      - claude/deploy-project-domain-uji310
+    paths:
+      - "index.html"
+      - "deploy/**"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy updated files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "index.html,deploy/backend,deploy/nginx,deploy/docker-compose.yml"
+          target: "/opt/pmo/incoming"
+          strip_components: 0
+
+      - name: Apply update and restart services
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            cp /opt/pmo/incoming/index.html /opt/pmo/deploy/frontend/index.html
+            cp -rf /opt/pmo/incoming/deploy/backend/. /opt/pmo/deploy/backend/
+            cp -rf /opt/pmo/incoming/deploy/nginx/. /opt/pmo/deploy/nginx/
+            cp /opt/pmo/incoming/deploy/docker-compose.yml /opt/pmo/deploy/docker-compose.yml
+            rm -rf /opt/pmo/incoming
+            cd /opt/pmo/deploy
+            docker compose up -d --build backend
+            docker compose restart nginx
+            echo "Deployed $(date)"
