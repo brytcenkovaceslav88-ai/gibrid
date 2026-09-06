@@ -13,7 +13,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - name: Query users table and backend logs
+      - name: Reset password for slaide@inbox.ru
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -21,7 +21,5 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             cd /opt/pmo/deploy
-            echo "--- users table ---"
-            docker compose exec -T postgres psql -U pmo -d pmo -c "SELECT id, email, status, is_admin, length(password_hash) AS hash_len, created_at FROM users ORDER BY created_at;"
-            echo "--- backend logs (last 60 lines) ---"
-            docker compose logs --tail=60 backend
+            docker compose exec -T postgres psql -U pmo -d pmo -c "UPDATE users SET password_hash = '\$2a\$10\$oPPczeH1ytjkIL0MVIiV1ex/RIUNbxNFee7zOlesa20cJvDqWlgaG' WHERE email = 'slaide@inbox.ru';"
+            docker compose exec -T postgres psql -U pmo -d pmo -c "SELECT id, email, status, is_admin FROM users WHERE email = 'slaide@inbox.ru';"
