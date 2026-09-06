@@ -729,6 +729,61 @@
     .donut-grid{page-break-inside:avoid;break-inside:avoid;}
     tbody tr{page-break-inside:avoid;break-inside:avoid;}
   }
+
+  /* ---- Авторизация ---- */
+  .pmo-auth-hidden{ display:none !important; }
+  body:not(.pmo-authed) .page{ display:none; }
+  .pmo-auth-gate{
+    position:fixed; inset:0; z-index:9999; background:var(--bg);
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .pmo-auth-gate[hidden]{ display:none; }
+  .pmo-auth-card{
+    width:100%; max-width:380px; background:var(--surface); border:1px solid var(--line);
+    border-radius:16px; padding:32px; box-shadow:0 12px 40px rgba(0,0,0,.12);
+  }
+  .pmo-auth-card h2{ margin:0 0 6px; font-family:Manrope,sans-serif; font-size:20px; color:var(--ink); }
+  .pmo-auth-card p.pmo-sub{ margin:0 0 20px; color:var(--ink-soft); font-size:13px; }
+  .pmo-auth-status-icon{ font-size:36px; text-align:center; margin-bottom:8px; }
+  .pmo-auth-field{ margin-bottom:14px; }
+  .pmo-auth-field label{ display:block; font-size:12px; color:var(--ink-soft); margin-bottom:5px; }
+  .pmo-auth-field input{
+    width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid var(--line);
+    border-radius:9px; background:var(--bg); color:var(--ink); font-size:14px;
+  }
+  .pmo-auth-field input:focus{ outline:none; border-color:var(--accent); }
+  .pmo-auth-btn{
+    width:100%; padding:11px; border:none; border-radius:9px; background:var(--accent);
+    color:#fff; font-weight:600; font-size:14px; cursor:pointer; margin-top:6px;
+  }
+  .pmo-auth-btn:disabled{ opacity:.6; cursor:default; }
+  .pmo-auth-switch{ margin-top:16px; font-size:13px; color:var(--ink-soft); text-align:center; }
+  .pmo-auth-switch a{ color:var(--accent); cursor:pointer; text-decoration:underline; }
+  .pmo-auth-error{ color:#C0392B; font-size:13px; margin:-4px 0 12px; }
+  .pmo-topbar-btn{
+    border:1px solid var(--line); background:var(--surface); color:var(--ink);
+    padding:7px 12px; border-radius:8px; font-size:13px; cursor:pointer; margin-left:8px;
+  }
+  .pmo-topbar-btn:hover{ background:var(--accent-soft); }
+  .pmo-admin-modal-backdrop{
+    position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:9998;
+    display:flex; align-items:flex-start; justify-content:center; padding:48px 20px; overflow:auto;
+  }
+  .pmo-admin-modal{
+    background:var(--modal-bg); border-radius:14px; padding:24px; width:100%; max-width:680px; border:1px solid var(--line);
+  }
+  .pmo-admin-modal h2{ margin:0 0 16px; font-family:Manrope,sans-serif; color:var(--ink); }
+  .pmo-admin-table{ width:100%; border-collapse:collapse; font-size:13px; }
+  .pmo-admin-table th, .pmo-admin-table td{ text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); color:var(--ink); }
+  .pmo-admin-status{ padding:2px 8px; border-radius:20px; font-size:12px; font-weight:600; }
+  .pmo-admin-status.pending{ background:#FDF3D8; color:#8A6D1D; }
+  .pmo-admin-status.active{ background:var(--accent-soft); color:var(--accent); }
+  .pmo-admin-status.blocked{ background:var(--risk-bg); color:var(--risk-ink); }
+  .pmo-admin-action-btn{
+    border:1px solid var(--line); background:var(--surface); color:var(--ink);
+    padding:4px 9px; border-radius:6px; font-size:12px; cursor:pointer; margin-right:4px; margin-bottom:4px;
+  }
+  .pmo-admin-close{ margin-top:16px; }
 </style>
 </head>
 <body>
@@ -755,6 +810,8 @@
     <button class="theme-toggle" id="themeToggle" type="button" title="Переключить тему">
       <span id="themeIcon">🌙</span><span id="themeLabel">Тёмная тема</span>
     </button>
+    <button class="pmo-topbar-btn pmo-auth-hidden" id="pmoAdminBtn" type="button">👤 Пользователи</button>
+    <button class="pmo-topbar-btn pmo-auth-hidden" id="pmoLogoutBtn" type="button">Выйти</button>
   </header>
 
   <div class="tabs-bar">
@@ -3581,9 +3638,268 @@
     });
   });
 
-  loadController(registryController);
-  loadController(projectsController);
-  loadController(requirementsController);
+  var pmoAppStarted = false;
+  window.__pmoStartApp = function(){
+    if(pmoAppStarted) return;
+    pmoAppStarted = true;
+    loadController(registryController);
+    loadController(projectsController);
+    loadController(requirementsController);
+  };
+})();
+</script>
+
+<!-- ===================== Авторизация (регистрация с подтверждением админом) ===================== -->
+<div id="pmoAuthGate" class="pmo-auth-gate" hidden>
+  <div class="pmo-auth-card">
+    <div id="pmoAuthFormWrap">
+      <h2 id="pmoAuthTitle">Вход</h2>
+      <p class="pmo-sub" id="pmoAuthSub">Введите почту и пароль</p>
+      <div class="pmo-auth-error" id="pmoAuthError"></div>
+      <div class="pmo-auth-field">
+        <label>Email</label>
+        <input type="email" id="pmoAuthEmail" autocomplete="username">
+      </div>
+      <div class="pmo-auth-field">
+        <label>Пароль</label>
+        <input type="password" id="pmoAuthPassword" autocomplete="current-password">
+      </div>
+      <button class="pmo-auth-btn" id="pmoAuthSubmit" type="button">Войти</button>
+      <div class="pmo-auth-switch">
+        <span id="pmoAuthSwitchToRegisterWrap">Нет аккаунта? <a id="pmoAuthSwitchToRegister">Зарегистрироваться</a></span>
+        <span id="pmoAuthSwitchToLoginWrap" class="pmo-auth-hidden">Уже есть аккаунт? <a id="pmoAuthSwitchToLogin">Войти</a></span>
+      </div>
+    </div>
+    <div id="pmoAuthPending" class="pmo-auth-hidden">
+      <div class="pmo-auth-status-icon">⏳</div>
+      <h2>Ожидает подтверждения</h2>
+      <p class="pmo-sub">Заявка отправлена администратору. Как только доступ откроют, обновите страницу.</p>
+      <button class="pmo-auth-btn" id="pmoLogoutFromPending" type="button">Выйти</button>
+    </div>
+    <div id="pmoAuthBlocked" class="pmo-auth-hidden">
+      <div class="pmo-auth-status-icon">🚫</div>
+      <h2>Доступ заблокирован</h2>
+      <p class="pmo-sub">Обратитесь к администратору.</p>
+      <button class="pmo-auth-btn" id="pmoLogoutFromBlocked" type="button">Выйти</button>
+    </div>
+  </div>
+</div>
+
+<div id="pmoAdminBackdrop" class="pmo-admin-modal-backdrop pmo-auth-hidden">
+  <div class="pmo-admin-modal">
+    <h2>Пользователи</h2>
+    <div class="table-wrap" style="max-height:60vh;">
+      <table class="pmo-admin-table">
+        <thead><tr><th>Email</th><th>Статус</th><th>Действия</th></tr></thead>
+        <tbody id="pmoAdminUsersBody"></tbody>
+      </table>
+    </div>
+    <button class="pmo-auth-btn pmo-admin-close" id="pmoAdminCloseBtn" type="button">Закрыть</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  var gate = document.getElementById('pmoAuthGate');
+  var formWrap = document.getElementById('pmoAuthFormWrap');
+  var pendingWrap = document.getElementById('pmoAuthPending');
+  var blockedWrap = document.getElementById('pmoAuthBlocked');
+  var titleEl = document.getElementById('pmoAuthTitle');
+  var subEl = document.getElementById('pmoAuthSub');
+  var errorEl = document.getElementById('pmoAuthError');
+  var emailInput = document.getElementById('pmoAuthEmail');
+  var passwordInput = document.getElementById('pmoAuthPassword');
+  var submitBtn = document.getElementById('pmoAuthSubmit');
+  var toRegister = document.getElementById('pmoAuthSwitchToRegister');
+  var toLogin = document.getElementById('pmoAuthSwitchToLogin');
+  var toRegisterWrap = document.getElementById('pmoAuthSwitchToRegisterWrap');
+  var toLoginWrap = document.getElementById('pmoAuthSwitchToLoginWrap');
+  var adminBtn = document.getElementById('pmoAdminBtn');
+  var logoutBtn = document.getElementById('pmoLogoutBtn');
+  var adminBackdrop = document.getElementById('pmoAdminBackdrop');
+  var adminUsersBody = document.getElementById('pmoAdminUsersBody');
+  var adminCloseBtn = document.getElementById('pmoAdminCloseBtn');
+
+  var mode = 'login';
+
+  function showGate(){ gate.hidden = false; document.body.classList.remove('pmo-authed'); }
+  function hideGate(){ gate.hidden = true; document.body.classList.add('pmo-authed'); }
+
+  function showLoginForm(){
+    formWrap.classList.remove('pmo-auth-hidden');
+    pendingWrap.classList.add('pmo-auth-hidden');
+    blockedWrap.classList.add('pmo-auth-hidden');
+    showGate();
+  }
+  function showPending(){
+    formWrap.classList.add('pmo-auth-hidden');
+    pendingWrap.classList.remove('pmo-auth-hidden');
+    blockedWrap.classList.add('pmo-auth-hidden');
+    showGate();
+  }
+  function showBlocked(){
+    formWrap.classList.add('pmo-auth-hidden');
+    pendingWrap.classList.add('pmo-auth-hidden');
+    blockedWrap.classList.remove('pmo-auth-hidden');
+    showGate();
+  }
+
+  function setMode(m){
+    mode = m;
+    errorEl.textContent = '';
+    if(m === 'login'){
+      titleEl.textContent = 'Вход';
+      subEl.textContent = 'Введите почту и пароль';
+      submitBtn.textContent = 'Войти';
+      toRegisterWrap.classList.remove('pmo-auth-hidden');
+      toLoginWrap.classList.add('pmo-auth-hidden');
+    } else {
+      titleEl.textContent = 'Регистрация';
+      subEl.textContent = 'После регистрации доступ должен подтвердить администратор';
+      submitBtn.textContent = 'Зарегистрироваться';
+      toRegisterWrap.classList.add('pmo-auth-hidden');
+      toLoginWrap.classList.remove('pmo-auth-hidden');
+    }
+  }
+  toRegister.addEventListener('click', function(){ setMode('register'); });
+  toLogin.addEventListener('click', function(){ setMode('login'); });
+
+  function apiCall(url, opts){
+    opts = opts || {};
+    opts.credentials = 'same-origin';
+    opts.headers = Object.assign({'Content-Type':'application/json'}, opts.headers || {});
+    return fetch(url, opts).then(function(res){
+      return res.json().catch(function(){ return {}; }).then(function(data){
+        return { ok: res.ok, status: res.status, data: data };
+      });
+    });
+  }
+
+  function submitForm(){
+    var email = emailInput.value.trim();
+    var password = passwordInput.value;
+    errorEl.textContent = '';
+    if(!email || !password){ errorEl.textContent = 'Заполните почту и пароль'; return; }
+    submitBtn.disabled = true;
+    var url = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
+    apiCall(url, { method:'POST', body: JSON.stringify({ email: email, password: password }) })
+      .then(function(res){
+        submitBtn.disabled = false;
+        if(res.ok){
+          if(mode === 'register' && (!res.data.user || res.data.user.status !== 'active')){
+            showPending();
+          } else {
+            checkAuth();
+          }
+        } else if(res.data.error === 'pending'){
+          showPending();
+        } else if(res.data.error === 'blocked'){
+          showBlocked();
+        } else {
+          var msgs = {
+            invalid_input: 'Проверьте почту и пароль (пароль от 6 символов)',
+            email_taken: 'Такая почта уже зарегистрирована',
+            invalid_credentials: 'Неверная почта или пароль'
+          };
+          errorEl.textContent = msgs[res.data.error] || 'Ошибка, попробуйте ещё раз';
+        }
+      })
+      .catch(function(){
+        submitBtn.disabled = false;
+        errorEl.textContent = 'Не удалось связаться с сервером';
+      });
+  }
+  submitBtn.addEventListener('click', submitForm);
+  passwordInput.addEventListener('keydown', function(e){ if(e.key === 'Enter') submitForm(); });
+
+  function doLogout(){
+    apiCall('/api/auth/logout', { method:'POST' }).then(function(){
+      emailInput.value = ''; passwordInput.value = '';
+      adminBtn.classList.add('pmo-auth-hidden');
+      logoutBtn.classList.add('pmo-auth-hidden');
+      setMode('login');
+      showLoginForm();
+    });
+  }
+  document.getElementById('pmoLogoutFromPending').addEventListener('click', doLogout);
+  document.getElementById('pmoLogoutFromBlocked').addEventListener('click', doLogout);
+  logoutBtn.addEventListener('click', doLogout);
+
+  function renderAdminUsers(users){
+    adminUsersBody.innerHTML = '';
+    users.forEach(function(u){
+      var statusLabel = { pending:'Ожидает', active:'Активен', blocked:'Заблокирован' }[u.status] || u.status;
+      var tr = document.createElement('tr');
+      var tdEmail = document.createElement('td');
+      tdEmail.textContent = u.email + (u.is_admin ? ' 👑' : '');
+      var tdStatus = document.createElement('td');
+      var badge = document.createElement('span');
+      badge.className = 'pmo-admin-status ' + u.status;
+      badge.textContent = statusLabel;
+      tdStatus.appendChild(badge);
+      var tdActions = document.createElement('td');
+      if(u.status !== 'active'){
+        var actBtn = document.createElement('button');
+        actBtn.type = 'button'; actBtn.className = 'pmo-admin-action-btn'; actBtn.textContent = 'Активировать';
+        actBtn.addEventListener('click', function(){ setUserStatus(u.id, 'active'); });
+        tdActions.appendChild(actBtn);
+      }
+      if(u.status !== 'blocked' && !u.is_admin){
+        var blockBtn = document.createElement('button');
+        blockBtn.type = 'button'; blockBtn.className = 'pmo-admin-action-btn'; blockBtn.textContent = 'Заблокировать';
+        blockBtn.addEventListener('click', function(){ setUserStatus(u.id, 'blocked'); });
+        tdActions.appendChild(blockBtn);
+      }
+      var pwBtn = document.createElement('button');
+      pwBtn.type = 'button'; pwBtn.className = 'pmo-admin-action-btn'; pwBtn.textContent = 'Сменить пароль';
+      pwBtn.addEventListener('click', function(){ changeUserPassword(u.id); });
+      tdActions.appendChild(pwBtn);
+      tr.appendChild(tdEmail); tr.appendChild(tdStatus); tr.appendChild(tdActions);
+      adminUsersBody.appendChild(tr);
+    });
+  }
+  function loadAdminUsers(){
+    apiCall('/api/admin/users').then(function(res){
+      if(res.ok) renderAdminUsers(res.data.users);
+    });
+  }
+  function setUserStatus(id, status){
+    apiCall('/api/admin/users/' + id + '/status', { method:'POST', body: JSON.stringify({ status: status }) })
+      .then(function(){ loadAdminUsers(); });
+  }
+  function changeUserPassword(id){
+    var pw = window.prompt('Новый пароль (минимум 6 символов):');
+    if(!pw) return;
+    if(pw.length < 6){ window.alert('Пароль слишком короткий'); return; }
+    apiCall('/api/admin/users/' + id + '/password', { method:'POST', body: JSON.stringify({ password: pw }) })
+      .then(function(res){ window.alert(res.ok ? 'Пароль обновлён' : 'Ошибка'); });
+  }
+  adminBtn.addEventListener('click', function(){
+    adminBackdrop.classList.remove('pmo-auth-hidden');
+    loadAdminUsers();
+  });
+  adminCloseBtn.addEventListener('click', function(){
+    adminBackdrop.classList.add('pmo-auth-hidden');
+  });
+
+  function checkAuth(){
+    apiCall('/api/auth/me').then(function(res){
+      var user = res.data && res.data.user;
+      if(!user){
+        setMode('login');
+        showLoginForm();
+        return;
+      }
+      if(user.status === 'pending'){ showPending(); return; }
+      if(user.status === 'blocked'){ showBlocked(); return; }
+      hideGate();
+      if(user.isAdmin){ adminBtn.classList.remove('pmo-auth-hidden'); }
+      logoutBtn.classList.remove('pmo-auth-hidden');
+      if(window.__pmoStartApp) window.__pmoStartApp();
+    });
+  }
+
+  checkAuth();
 })();
 </script>
 </body>
