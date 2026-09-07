@@ -1635,24 +1635,38 @@
     if(c.hasPlanning){
       c.state.planningWeeks = defaultPlanningWeeks();
     }
+    c.deletedColumnIds = [];
+    c.deletedSectionKeys = [];
     c.persistColumns = function(){ persist(c.storagePrefix + '-columns', c.state.columns); };
     c.persistTitles = function(){ persist(c.storagePrefix + '-titles', c.state.titles); };
     c.persistSection = function(section){ persist(c.storagePrefix + '-' + section, c.state[section]); };
     c.persistSectionKeys = function(){ persist(c.storagePrefix + '-sectionkeys', c.sectionKeys); };
     c.persistPlanningWeeks = function(){ persist(c.storagePrefix + '-planningweeks', c.state.planningWeeks); };
+    c.persistDeletedColumnIds = function(){ persist(c.storagePrefix + '-deletedcolumns', c.deletedColumnIds); };
+    c.persistDeletedSectionKeys = function(){ persist(c.storagePrefix + '-deletedsections', c.deletedSectionKeys); };
     controllers[opts.viewKey] = c;
     return c;
   }
 
   async function loadController(c){
     try{
+      // A column/section an admin deleted must stay deleted — the merge
+      // below re-adds any *default* id missing from saved data so newly
+      // introduced code-level columns show up for existing users, but
+      // without this list it couldn't tell "never existed" from
+      // "deliberately removed" and kept resurrecting deleted defaults.
+      var delCols = await loadValue(c.storagePrefix+'-deletedcolumns');
+      c.deletedColumnIds = delCols ? JSON.parse(delCols) : [];
+      var delSecs = await loadValue(c.storagePrefix+'-deletedsections');
+      c.deletedSectionKeys = delSecs ? JSON.parse(delSecs) : [];
+
       var col = await loadValue(c.storagePrefix+'-columns');
       if(col){
         var savedColumns = JSON.parse(col);
         var savedIds = {};
         savedColumns.forEach(function(sc){ savedIds[sc.id] = true; });
         c.defaults.columns.forEach(function(defCol){
-          if(!savedIds[defCol.id]) savedColumns.push(defCol);
+          if(!savedIds[defCol.id] && c.deletedColumnIds.indexOf(defCol.id) === -1) savedColumns.push(defCol);
         });
         c.state.columns = savedColumns;
       }
@@ -1673,7 +1687,7 @@
         var savedKeys = JSON.parse(sk);
         var savedKeySet = {};
         savedKeys.forEach(function(k){ savedKeySet[k] = true; });
-        c.defaults.sectionKeys.forEach(function(k){ if(!savedKeySet[k]) savedKeys.push(k); });
+        c.defaults.sectionKeys.forEach(function(k){ if(!savedKeySet[k] && c.deletedSectionKeys.indexOf(k) === -1) savedKeys.push(k); });
         c.sectionKeys = savedKeys;
       }
       if(c.excludeSections.length){
@@ -3172,6 +3186,10 @@
     c.sectionKeys.forEach(function(section){
       c.state[section].forEach(function(r){ delete r[colId]; });
     });
+    if(c.deletedColumnIds.indexOf(colId) === -1){
+      c.deletedColumnIds.push(colId);
+      c.persistDeletedColumnIds();
+    }
     c.persistColumns();
     c.sectionKeys.forEach(function(section){ c.persistSection(section); });
     render(c);
@@ -3188,6 +3206,10 @@
     c.sectionKeys = c.sectionKeys.filter(function(k){ return k !== key; });
     delete c.state[key];
     delete c.state.titles[key];
+    if(c.deletedSectionKeys.indexOf(key) === -1){
+      c.deletedSectionKeys.push(key);
+      c.persistDeletedSectionKeys();
+    }
     c.persistSectionKeys();
     c.persistTitles();
     await removeStorageKey(c.storagePrefix + '-' + key);
@@ -3393,11 +3415,15 @@
     else c.sectionKeys.forEach(function(key){ renumberSection(c, key); });
     c.columnFilters = {};
     c.searchQuery = '';
+    c.deletedColumnIds = [];
+    c.deletedSectionKeys = [];
     var searchInput = document.getElementById('searchInput-' + c.viewKey);
     if(searchInput) searchInput.value = '';
     await persistNow(c.storagePrefix+'-columns', c.state.columns);
     await persistNow(c.storagePrefix+'-titles', c.state.titles);
     await persistNow(c.storagePrefix+'-sectionkeys', c.sectionKeys);
+    await persistNow(c.storagePrefix+'-deletedcolumns', c.deletedColumnIds);
+    await persistNow(c.storagePrefix+'-deletedsections', c.deletedSectionKeys);
     for(var i=0;i<c.sectionKeys.length;i++){
       var key = c.sectionKeys[i];
       await persistNow(c.storagePrefix+'-'+key, c.state[key]);
