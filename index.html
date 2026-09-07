@@ -442,10 +442,21 @@
      inline with the (up to 3-line) name text — an inline flex layout put
      the time badge awkwardly mid-paragraph and could overlap wrapped text. */
   .planning-task-head{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:3px;min-height:8px;}
-  .planning-task-dot{flex-shrink:0;width:7px;height:7px;border-radius:50%;}
-  .planning-task-dot-progress{background:#2E9E4A;}
-  .planning-task-dot-not_started{background:#9AA39B;}
-  .planning-task-dot-done{background:#4C86C7;}
+  .planning-task-dot{
+    flex-shrink:0;width:11px;height:11px;border-radius:50%;
+    animation:planning-dot-pulse 1.8s ease-in-out infinite;
+  }
+  .planning-task-dot-progress{background:#2E9E4A;--dot-glow:rgba(46,158,74,.55);}
+  .planning-task-dot-not_started{background:#9AA39B;--dot-glow:rgba(154,163,155,.5);}
+  .planning-task-dot-done{background:#4C86C7;--dot-glow:rgba(76,134,199,.55);}
+  @keyframes planning-dot-pulse{
+    0%{box-shadow:0 0 0 0 var(--dot-glow);}
+    70%{box-shadow:0 0 0 6px rgba(0,0,0,0);}
+    100%{box-shadow:0 0 0 0 rgba(0,0,0,0);}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .planning-task-dot{animation:none;}
+  }
   .planning-task-name{color:var(--ink);}
   /* Each line is its own non-wrapping block holding exactly the 35 characters
      wrapPlanningTaskName sliced for it — a monospace font makes 1ch == 1
@@ -648,6 +659,10 @@
   .popover-text-input{
     font-family:inherit;font-size:14px;padding:8px 10px;
     border:1px solid var(--line);border-radius:8px;color:var(--ink);width:100%;
+    /* Without an explicit background this renders as a native (light) input
+       box — in dark theme --ink is a near-white colour, so pasted text was
+       effectively invisible white-on-white. */
+    background:var(--surface);box-sizing:border-box;
   }
   .popover-text-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
   .popover-quick{display:flex;gap:6px;flex-wrap:wrap;}
@@ -1516,19 +1531,25 @@
     if(!res.ok) throw new Error('api delete failed: ' + res.status);
   }
 
+  // Tracks in-flight saves so a reload/close right after typing doesn't
+  // silently drop them — see the beforeunload handler below, which both
+  // flushes the currently-edited cell and warns the user while a save is
+  // still in the air (fetches get aborted by the browser on navigation).
+  var pendingSaveCount = 0;
   function persist(key, value){
     var json = JSON.stringify(value);
+    pendingSaveCount++;
     if(hasWindowStorage){
       window.storage.set(key, json, false).then(function(){ flashSaved(); }).catch(function(e){
         console.error('window.storage failed, falling back', e);
-        persistToApiOrLocal(key, json);
-      });
+        return persistToApiOrLocal(key, json);
+      }).finally(function(){ pendingSaveCount--; });
     } else {
-      persistToApiOrLocal(key, json);
+      persistToApiOrLocal(key, json).finally(function(){ pendingSaveCount--; });
     }
   }
   function persistToApiOrLocal(key, json){
-    apiSetValue(key, json).then(function(){ flashSaved(); }).catch(function(e){
+    return apiSetValue(key, json).then(function(){ flashSaved(); }).catch(function(e){
       console.error('backend save failed, falling back to localStorage', e);
       if(localSet(key, json)) flashSaved(); else flashSaveFailed();
     });
@@ -1807,6 +1828,37 @@
     }
   }
 
+  // Product ("ПАК"/"Гибрид") decides which questionnaire spec applies to a
+  // row — this rebuilds just the Опросник cell so it reflects a product
+  // change immediately, without needing a full table re-render.
+  function renderQuestionnaireCell(td, controller, section, rowIdx, row){
+    td.innerHTML = '';
+    var specKey = productToSpecKey(row.product);
+    var qBtn = document.createElement('button');
+    qBtn.type = 'button';
+    qBtn.className = 'questionnaire-btn';
+    if(!specKey){
+      qBtn.textContent = '— выберите продукт —';
+      qBtn.disabled = true;
+      qBtn.classList.add('questionnaire-btn-disabled');
+    } else {
+      var qProg = computeQuestionnaireProgress(row, specKey);
+      var qDone = qProg.total > 0 && qProg.filled === qProg.total;
+      qBtn.textContent = (qDone ? '✅ ' : '📋 ') + 'Опросник (' + qProg.filled + '/' + qProg.total + ')';
+      if(qDone) qBtn.classList.add('questionnaire-btn-done');
+      qBtn.addEventListener('click', function(){ openQuestionnaireModal(controller, section, rowIdx, specKey); });
+    }
+    td.appendChild(qBtn);
+  }
+
+  function refreshQuestionnaireCell(controller, section, rowIdx){
+    var cell = document.querySelector(
+      '[data-view="'+controller.viewKey+'"][data-kind="cell"][data-section="'+section+'"][data-row="'+rowIdx+'"][data-field="questionnaire"]'
+    );
+    if(!cell) return;
+    renderQuestionnaireCell(cell, controller, section, rowIdx, controller.state[section][rowIdx]);
+  }
+
   function buildSection(c, tbody, sectionKey){
     var colCount = c.state.columns.length + 1;
     var isAdmin = !!window.__pmoIsAdmin;
@@ -1912,24 +1964,7 @@
           td.appendChild(cspan);
         } else if(field === 'questionnaire'){
           td.classList.remove('editable');
-          var specKey = productToSpecKey(r.product);
-          var qBtn = document.createElement('button');
-          qBtn.type = 'button';
-          qBtn.className = 'questionnaire-btn';
-          if(!specKey){
-            qBtn.textContent = '— выберите продукт —';
-            qBtn.disabled = true;
-            qBtn.classList.add('questionnaire-btn-disabled');
-          } else {
-            var qProg = computeQuestionnaireProgress(r, specKey);
-            var qDone = qProg.total > 0 && qProg.filled === qProg.total;
-            qBtn.textContent = (qDone ? '✅ ' : '📋 ') + 'Опросник (' + qProg.filled + '/' + qProg.total + ')';
-            if(qDone) qBtn.classList.add('questionnaire-btn-done');
-            (function(sec, idx, spKey){
-              qBtn.addEventListener('click', function(){ openQuestionnaireModal(c, sec, idx, spKey); });
-            })(sectionKey, rowIdx, specKey);
-          }
-          td.appendChild(qBtn);
+          renderQuestionnaireCell(td, c, sectionKey, rowIdx, r);
         } else if(field === 'risks'){
           td.textContent = val;
           td.classList.add(val && val.trim() ? 'has-risk' : 'no-risk');
@@ -2646,7 +2681,7 @@
     tasks.forEach(function(task){
       var chip = document.createElement('div');
       chip.className = 'planning-task-chip';
-      chip.title = task.title || '';
+      chip.title = (task.title || '') + (task.server ? ('\nСервер: ' + task.server) : '');
       var head = document.createElement('div');
       head.className = 'planning-task-head';
       var dot = document.createElement('span');
@@ -2752,7 +2787,7 @@
     var tasks = row.planning[dateKey];
     var existing = taskId ? tasks.find(function(t){ return t.id === taskId; }) : null;
     var draft = existing ? Object.assign({}, existing) : {
-      id: newPlanningTaskId(), title:'', description:'', status:'not_started', timeUnit:'days', timeValue:''
+      id: newPlanningTaskId(), title:'', description:'', server:'', status:'not_started', timeUnit:'days', timeValue:''
     };
     var currentStatus = draft.status;
 
@@ -2788,6 +2823,14 @@
     var descInput = document.createElement('textarea'); descInput.value = draft.description;
     descField.appendChild(descLabel); descField.appendChild(descInput);
     body.appendChild(descField);
+
+    var serverField = document.createElement('div'); serverField.className = 'pt-field';
+    var serverLabel = document.createElement('label'); serverLabel.textContent = 'Сервер';
+    var serverInput = document.createElement('input'); serverInput.type = 'text';
+    serverInput.placeholder = 'Например, srv-app-01';
+    serverInput.value = draft.server || '';
+    serverField.appendChild(serverLabel); serverField.appendChild(serverInput);
+    body.appendChild(serverField);
 
     var statusField = document.createElement('div'); statusField.className = 'pt-field';
     var statusLabel = document.createElement('label'); statusLabel.textContent = 'Статус';
@@ -2867,6 +2910,7 @@
         id: draft.id,
         title: title,
         description: descInput.value.trim(),
+        server: serverInput.value.trim(),
         status: currentStatus,
         timeUnit: unit,
         timeValue: value
@@ -3426,6 +3470,7 @@
         pspan.className = 'badge badge-' + productClass(text);
         pspan.textContent = text;
         cell.appendChild(pspan);
+        refreshQuestionnaireCell(controller, section, r);
       } else if(controller.chipFields[field]){
         var cfg = controller.chipFields[field];
         cell.innerHTML = '';
@@ -3653,6 +3698,7 @@
         pspan.className = 'badge badge-' + productClass(p.key);
         pspan.textContent = p.key;
         cell.appendChild(pspan);
+        refreshQuestionnaireCell(controller, section, rowIdx);
         closePopover();
       });
       list.appendChild(b);
@@ -3866,6 +3912,19 @@
       e.preventDefault();
       activeCell.innerText = activeCell.dataset.prev || '';
       activeCell.blur();
+    }
+  });
+
+  // A reload or tab close right after typing skipped both problems below:
+  // an edit still in a contenteditable cell was never committed (commit only
+  // runs on blur), and even a committed edit's save fetch gets aborted by the
+  // browser mid-navigation. Flush the open edit synchronously so its save at
+  // least starts, and warn the user while a save is still in flight.
+  window.addEventListener('beforeunload', function(e){
+    if(activeCell) commitEdit(activeCell, activeController);
+    if(pendingSaveCount > 0){
+      e.preventDefault();
+      e.returnValue = '';
     }
   });
 
