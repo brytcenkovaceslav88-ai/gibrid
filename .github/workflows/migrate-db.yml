@@ -1,6 +1,11 @@
 name: Migrate database to internal server
 
 on:
+  push:
+    branches:
+      - claude/deploy-project-domain-uji310
+    paths:
+      - ".github/workflows/migrate-db.yml"
   workflow_dispatch: {}
 
 jobs:
