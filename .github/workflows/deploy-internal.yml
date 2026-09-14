@@ -1,0 +1,46 @@
+name: Deploy to internal server (self-hosted runner)
+
+on:
+  push:
+    branches:
+      - claude/deploy-project-domain-uji310
+    paths:
+      - "index.html"
+      - "deploy/**"
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      # The runner lives on the target machine itself, so this is a plain
+      # local file copy — no SCP/SSH needed, unlike the old public-server
+      # workflow. /opt/pmo must be owned by the runner's user (one-time
+      # bootstrap step, see deploy/README.md).
+      - name: Sync files into /opt/pmo/deploy
+        run: |
+          set -e
+          mkdir -p /opt/pmo/deploy/frontend
+          cp index.html /opt/pmo/deploy/frontend/index.html
+          mkdir -p /opt/pmo/deploy/backend /opt/pmo/deploy/nginx
+          cp -rf deploy/backend/. /opt/pmo/deploy/backend/
+          cp -rf deploy/nginx/. /opt/pmo/deploy/nginx/
+          cp deploy/docker-compose.yml /opt/pmo/deploy/docker-compose.yml
+
+      - name: Check .env exists
+        run: |
+          if [ ! -f /opt/pmo/deploy/.env ]; then
+            echo "::error::/opt/pmo/deploy/.env is missing — bootstrap the server once first (see deploy/README.md), then re-run this workflow."
+            exit 1
+          fi
+
+      - name: Restart services
+        working-directory: /opt/pmo/deploy
+        run: |
+          set -e
+          docker compose up -d --build backend
+          docker compose up -d postgres
+          docker compose restart nginx
+          echo "Deployed $(date)"
