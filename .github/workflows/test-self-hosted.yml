@@ -1,0 +1,18 @@
+name: Self-hosted runner smoke test
+
+on:
+  push:
+    branches:
+      - test-self-hosted-runner
+
+jobs:
+  smoke-test:
+    runs-on: self-hosted
+    steps:
+      - name: Say hello from the new server
+        run: |
+          echo "Hello from the self-hosted runner!"
+          echo "Host: $(hostname)"
+          echo "User: $(whoami)"
+          echo "Time: $(date)"
+          echo "Docker: $(docker --version)"
