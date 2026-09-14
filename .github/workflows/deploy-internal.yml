@@ -43,5 +43,5 @@ jobs:
           set -e
           docker compose up -d --build backend
           docker compose up -d postgres
-          docker compose restart nginx
+          docker compose up -d nginx
           echo "Deployed $(date)"
