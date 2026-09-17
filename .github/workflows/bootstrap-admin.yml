@@ -1,0 +1,36 @@
+name: Bootstrap a fresh admin user
+
+on:
+  push:
+    branches:
+      - claude/deploy-project-domain-uji310
+    paths:
+      - ".github/workflows/bootstrap-admin.yml"
+  workflow_dispatch: {}
+
+jobs:
+  bootstrap:
+    runs-on: self-hosted
+    steps:
+      - name: Register and promote a new admin
+        run: |
+          set -e
+          EMAIL="admin.$(date +%s)@internal.local"
+          PASS=$(openssl rand -base64 12)
+
+          curl -s -o /tmp/register_response.json -w "%{http_code}" -X POST http://localhost/api/auth/register \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\"}" > /tmp/register_status.txt
+
+          echo "Register HTTP status: $(cat /tmp/register_status.txt)"
+          cat /tmp/register_response.json
+
+          docker exec pmo_postgres psql -U pmo -d pmo -c \
+            "UPDATE users SET is_admin=true, status='active' WHERE email='${EMAIL}';"
+
+          # Credentials are written to a local, non-logged file rather than
+          # printed to the Actions log (which could remain visible to
+          # anyone with repo access).
+          umask 077
+          printf 'email=%s\npassword=%s\n' "$EMAIL" "$PASS" > /opt/pmo/new_admin_credentials.txt
+          echo "Admin bootstrapped — credentials written to /opt/pmo/new_admin_credentials.txt on the server (not printed here)."
