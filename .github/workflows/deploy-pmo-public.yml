@@ -1,0 +1,82 @@
+name: Deploy to pmo.gigaenterprise.ai (self-hosted runner)
+
+on:
+  push:
+    branches:
+      - claude/deploy-project-domain-uji310
+    paths:
+      - "index.html"
+      - "deploy/**"
+      - ".github/workflows/deploy-pmo-public.yml"
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, pmo-public]
+    env:
+      DOMAIN: pmo.gigaenterprise.ai
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync files into /opt/pmo/deploy
+        run: |
+          set -e
+          mkdir -p /opt/pmo/deploy/frontend
+          cp index.html /opt/pmo/deploy/frontend/index.html
+          mkdir -p /opt/pmo/deploy/backend /opt/pmo/deploy/nginx
+          cp -rf deploy/backend/. /opt/pmo/deploy/backend/
+          cp -rf deploy/nginx/. /opt/pmo/deploy/nginx/
+          cp deploy/docker-compose.yml /opt/pmo/deploy/docker-compose.yml
+
+      - name: Check .env exists
+        run: |
+          if [ ! -f /opt/pmo/deploy/.env ]; then
+            echo "::error::/opt/pmo/deploy/.env is missing — bootstrap the server once first (see deploy/README.md), then re-run this workflow."
+            exit 1
+          fi
+
+      - name: Start core services (bootstrap nginx config, plain HTTP)
+        working-directory: /opt/pmo/deploy
+        run: |
+          set -e
+          docker compose up -d --build backend
+          docker compose up -d postgres
+          docker compose up -d nginx
+          echo "Core services deployed $(date)"
+
+      - name: Issue Let's Encrypt certificate (skips if already present)
+        working-directory: /opt/pmo/deploy
+        run: |
+          set -e
+          if docker compose run --rm --entrypoint sh certbot -c "[ -f /etc/letsencrypt/live/${DOMAIN}/fullchain.pem ]"; then
+            echo "Certificate for ${DOMAIN} already exists, skipping issuance."
+          else
+            SERVER_IP=$(curl -fsS -4 ifconfig.me || curl -fsS -4 icanhazip.com)
+            DOMAIN_IP=$(getent hosts "${DOMAIN}" | awk '{print $1}' | head -1)
+            echo "Server IP: ${SERVER_IP}  |  ${DOMAIN} resolves to: ${DOMAIN_IP:-<none>}"
+            if [ "${SERVER_IP}" != "${DOMAIN_IP}" ]; then
+              echo "::warning::DNS for ${DOMAIN} does not point at this server yet — skipping certificate issuance. Site stays on plain HTTP for now."
+            else
+              docker compose run --rm --entrypoint certbot certbot certonly --webroot -w /var/www/certbot \
+                -d "${DOMAIN}" --email "admin@gigaenterprise.ai" --agree-tos --no-eff-email
+            fi
+          fi
+
+      - name: Switch nginx to HTTPS config if a certificate is present
+        working-directory: /opt/pmo/deploy
+        run: |
+          set -e
+          if docker compose run --rm --entrypoint sh certbot -c "[ -f /etc/letsencrypt/live/${DOMAIN}/fullchain.pem ]"; then
+            sed "s/pmo\.qslaide\.beget\.tech/${DOMAIN}/g" nginx/pmo-full.conf > nginx/pmo-bootstrap.conf
+            docker compose restart nginx
+            docker compose up -d certbot
+            echo "Switched to HTTPS config for ${DOMAIN}."
+          else
+            echo "No certificate yet — staying on plain HTTP bootstrap config."
+          fi
+
+      - name: Final check
+        run: |
+          sleep 2
+          curl -fsS -o /dev/null -w "http://${DOMAIN}/ -> %{http_code}\n" "http://${DOMAIN}/" || true
+          curl -fsS -o /dev/null -w "https://${DOMAIN}/ -> %{http_code}\n" "https://${DOMAIN}/" || echo "HTTPS not up yet (expected until a certificate is issued)."
