@@ -1,0 +1,18 @@
+name: Check which runners are alive
+
+on:
+  push:
+    branches:
+      - claude/deploy-project-domain-uji310
+    paths:
+      - ".github/workflows/check-runners.yml"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: self-hosted
+    steps:
+      - name: Report which server picked this up
+        run: |
+          echo "Hostname: $(hostname)"
+          echo "IP: $(hostname -I)"
