@@ -36,6 +36,7 @@ services:
       - ./frontend:/usr/share/nginx/html:ro
       - certbot_www:/var/www/certbot:ro
       - certbot_certs:/etc/letsencrypt:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
     depends_on:
       - backend
     networks:

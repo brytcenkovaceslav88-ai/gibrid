@@ -44,39 +44,62 @@ jobs:
           docker compose up -d nginx
           echo "Core services deployed $(date)"
 
-      - name: Issue Let's Encrypt certificate (skips if already present)
+      # A real certificate was purchased for *.gigaenterprise.ai, so no ACME
+      # HTTP-01 challenge (and therefore no inbound port 80) is needed. The
+      # cert/key never touch the repo or the Actions log — they come in as
+      # encrypted repository secrets and are written straight to disk here.
+      - name: Write TLS certificate from secrets
         working-directory: /opt/pmo/deploy
         run: |
           set -e
-          if docker compose run --rm --entrypoint sh certbot -c "[ -f /etc/letsencrypt/live/${DOMAIN}/fullchain.pem ]"; then
-            echo "Certificate for ${DOMAIN} already exists, skipping issuance."
-          else
-            SERVER_IP=$(curl -fsS -4 ifconfig.me || curl -fsS -4 icanhazip.com)
-            DOMAIN_IP=$(getent hosts "${DOMAIN}" | awk '{print $1}' | head -1)
-            echo "Server IP: ${SERVER_IP}  |  ${DOMAIN} resolves to: ${DOMAIN_IP:-<none>}"
-            if [ "${SERVER_IP}" != "${DOMAIN_IP}" ]; then
-              echo "::warning::DNS for ${DOMAIN} does not point at this server yet — skipping certificate issuance. Site stays on plain HTTP for now."
-            else
-              docker compose run --rm --entrypoint certbot certbot certonly --webroot -w /var/www/certbot \
-                -d "${DOMAIN}" --email "admin@gigaenterprise.ai" --agree-tos --no-eff-email
-            fi
-          fi
+          mkdir -p nginx/certs
+          umask 077
+          cat > nginx/certs/server.crt << 'CERTEOF'
+          ${{ secrets.PMO_TLS_CERT }}
+          CERTEOF
+          cat > nginx/certs/server.key << 'KEYEOF'
+          ${{ secrets.PMO_TLS_KEY }}
+          KEYEOF
+          echo "Certificate and key written to nginx/certs/."
 
-      - name: Switch nginx to HTTPS config if a certificate is present
+      - name: Write HTTPS nginx config and reload
         working-directory: /opt/pmo/deploy
         run: |
           set -e
-          if docker compose run --rm --entrypoint sh certbot -c "[ -f /etc/letsencrypt/live/${DOMAIN}/fullchain.pem ]"; then
-            sed "s/pmo\.qslaide\.beget\.tech/${DOMAIN}/g" nginx/pmo-full.conf > nginx/pmo-bootstrap.conf
-            docker compose restart nginx
-            docker compose up -d certbot
-            echo "Switched to HTTPS config for ${DOMAIN}."
-          else
-            echo "No certificate yet — staying on plain HTTP bootstrap config."
-          fi
+          cat > nginx/pmo-bootstrap.conf << EOF
+          server {
+              listen 80;
+              server_name ${DOMAIN};
+              location / {
+                  return 301 https://\$host\$request_uri;
+              }
+          }
+
+          server {
+              listen 443 ssl;
+              server_name ${DOMAIN};
+
+              ssl_certificate     /etc/nginx/certs/server.crt;
+              ssl_certificate_key /etc/nginx/certs/server.key;
+
+              location /api/ {
+                  proxy_pass http://backend:3000;
+                  proxy_set_header Host \$host;
+                  proxy_set_header X-Real-IP \$remote_addr;
+                  proxy_set_header X-Forwarded-Proto \$scheme;
+              }
+
+              root /usr/share/nginx/html;
+              index index.html;
+              location / {
+                  try_files \$uri \$uri/ /index.html;
+              }
+          }
+          EOF
+          docker compose restart nginx
+          echo "nginx reloaded with HTTPS config for ${DOMAIN}."
 
       - name: Final check
         run: |
           sleep 2
-          curl -fsS -o /dev/null -w "http://${DOMAIN}/ -> %{http_code}\n" "http://${DOMAIN}/" || true
-          curl -fsS -o /dev/null -w "https://${DOMAIN}/ -> %{http_code}\n" "https://${DOMAIN}/" || echo "HTTPS not up yet (expected until a certificate is issued)."
+          curl -fsSk -o /dev/null -w "https://${DOMAIN}/ (local) -> %{http_code}\n" "https://localhost/" -H "Host: ${DOMAIN}" || true
