@@ -10,7 +10,7 @@ on:
 
 jobs:
   bootstrap:
-    runs-on: self-hosted
+    runs-on: [self-hosted, pmo-internal]
     steps:
       - name: Register and promote a new admin
         run: |

@@ -1,45 +1,39 @@
-name: Migrate database to internal server
+name: Migrate database to pmo.gigaenterprise.ai
 
 on:
   push:
     branches:
       - claude/deploy-project-domain-uji310
     paths:
-      - ".github/workflows/migrate-db.yml"
+      - ".github/workflows/migrate-db-to-public.yml"
   workflow_dispatch: {}
 
 jobs:
-  dump-old:
-    runs-on: ubuntu-latest
+  dump-internal:
+    runs-on: [self-hosted, pmo-internal]
     steps:
-      - name: Dump database from the old server
+      - name: Dump database on the internal server (10.2.0.76)
         run: |
           set -e
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_deploy
-          chmod 600 ~/.ssh/id_deploy
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_deploy \
-            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            'docker exec pmo_postgres pg_dump -U pmo -d pmo --no-owner --no-privileges' \
-            > pmo_dump.sql
+          docker exec pmo_postgres pg_dump -U pmo -d pmo --no-owner --no-privileges > pmo_dump.sql
           test -s pmo_dump.sql
           wc -l pmo_dump.sql
 
       - name: Upload dump as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pmo-db-dump
+          name: pmo-db-dump-public
           path: pmo_dump.sql
           retention-days: 3
 
-  restore-new:
-    needs: dump-old
-    runs-on: [self-hosted, pmo-internal]
+  restore-public:
+    needs: dump-internal
+    runs-on: [self-hosted, pmo-public]
     steps:
       - name: Download dump artifact
         uses: actions/download-artifact@v4
         with:
-          name: pmo-db-dump
+          name: pmo-db-dump-public
 
       - name: Stop backend during restore
         run: docker compose -f /opt/pmo/deploy/docker-compose.yml stop backend

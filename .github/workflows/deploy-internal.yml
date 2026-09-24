@@ -12,7 +12,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: [self-hosted, pmo-internal]
     steps:
       - uses: actions/checkout@v4
 
