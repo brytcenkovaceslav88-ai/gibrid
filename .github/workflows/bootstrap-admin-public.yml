@@ -1,0 +1,33 @@
+name: Bootstrap a fresh admin user (pmo.gigaenterprise.ai)
+
+on:
+  push:
+    branches:
+      - claude/deploy-project-domain-uji310
+    paths:
+      - ".github/workflows/bootstrap-admin-public.yml"
+  workflow_dispatch: {}
+
+jobs:
+  bootstrap:
+    runs-on: [self-hosted, pmo-public]
+    steps:
+      - name: Register the first user (auto-becomes active admin)
+        run: |
+          set -e
+          EMAIL="admin.$(date +%s)@internal.local"
+          PASS=$(openssl rand -base64 12)
+
+          curl -sk -o /tmp/register_response.json -w "%{http_code}" -X POST https://localhost/api/auth/register \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\"}" > /tmp/register_status.txt
+
+          echo "Register HTTP status: $(cat /tmp/register_status.txt)"
+          cat /tmp/register_response.json
+
+          # Credentials are written to a local, non-logged file rather than
+          # printed to the Actions log (which could remain visible to
+          # anyone with repo access).
+          umask 077
+          printf 'email=%s\npassword=%s\n' "$EMAIL" "$PASS" > /opt/pmo/new_admin_credentials.txt
+          echo "Admin bootstrapped — credentials written to /opt/pmo/new_admin_credentials.txt on the server (not printed here)."
