@@ -35,24 +35,19 @@ jobs:
             exit 1
           fi
 
-      - name: Start core services (bootstrap nginx config, plain HTTP)
-        working-directory: /opt/pmo/deploy
-        run: |
-          set -e
-          docker compose up -d --build backend
-          docker compose up -d postgres
-          docker compose up -d nginx
-          echo "Core services deployed $(date)"
-
       # A real certificate was purchased for *.gigaenterprise.ai, so no ACME
       # HTTP-01 challenge (and therefore no inbound port 80) is needed. The
       # cert/key never touch the repo or the Actions log — they come in as
       # encrypted repository secrets and are written straight to disk here.
+      # This must run BEFORE nginx first starts: otherwise Docker auto-creates
+      # the ./nginx/certs bind-mount target as root, and this step's own
+      # (non-root) write fails with "Permission denied".
       - name: Write TLS certificate from secrets
         working-directory: /opt/pmo/deploy
         run: |
           set -e
-          mkdir -p nginx/certs
+          sudo mkdir -p nginx/certs
+          sudo chown -R "$(id -u):$(id -g)" nginx/certs
           umask 077
           cat > nginx/certs/server.crt << 'CERTEOF'
           ${{ secrets.PMO_TLS_CERT }}
@@ -61,6 +56,15 @@ jobs:
           ${{ secrets.PMO_TLS_KEY }}
           KEYEOF
           echo "Certificate and key written to nginx/certs/."
+
+      - name: Start core services (bootstrap nginx config, plain HTTP)
+        working-directory: /opt/pmo/deploy
+        run: |
+          set -e
+          docker compose up -d --build backend
+          docker compose up -d postgres
+          docker compose up -d nginx
+          echo "Core services deployed $(date)"
 
       - name: Write HTTPS nginx config and reload
         working-directory: /opt/pmo/deploy
