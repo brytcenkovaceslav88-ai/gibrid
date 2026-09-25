@@ -1380,6 +1380,10 @@
     });
   }
 
+  // @pmo-shared-begin — блок до @pmo-shared-end исполняет и MCP-сервер
+  // (deploy/mcp читает его прямо из index.html): справочники, данные по
+  // умолчанию и правила ID строк/слияния должны совпадать у обоих.
+  // Здесь не должно быть обращений к DOM.
   // ---- Shared reference data ----
   var STAGES = [
     {key:'Не начата', cls:'0', dot:'var(--stage-0)'},
@@ -1556,6 +1560,135 @@
   var REQUIREMENTS_TITLES_DEFAULT = { items: 'Требования к GigaCowork' };
   var REQUIREMENTS_ITEMS_DEFAULT = [{"num": "1", "section": "Общие проверки", "requirement": "Соответствие объекта тестирования Методическим рекомендациям", "criteria": "Объект тестирования/инфраструктура объекта тестирования: присутствует в Едином реестре российских программ для электронных вычислительных машин и баз данных или присутствует в Едином реестре программ для электронных вычислительных машин и баз данных государств – членов Евразийского экономического союза", "decisive": "Решающее", "compliance": "4", "comment": "GigaCowork - российская платформа, входит в реестр российского ПО. Полное соответствие."}, {"num": "2", "section": "Общие проверки", "requirement": "Наличие в Объекте тестирования функциональности для выявления ошибок в настройках и доработках Объекта тестирования", "criteria": "В составе Объекта тестирования имеются инструменты для администрирования, позволяющие диагностировать ошибки в настройках и доработках Объекта тестирования с целью их оперативного устранения", "decisive": "Решающее", "compliance": "4", "comment": "Платформа предоставляет инструменты мониторинга, логирования и диагностики для выявления ошибок."}, {"num": "3", "section": "Общие проверки", "requirement": "Возможность заключения сервисного договора об организации технической поддержки", "criteria": "В документации на Объект тестирования или в обращении производителя (представителя) имеется информация о наличии возможности заключения договора об организации технической поддержки со следующими показателями:\nЯзык общения: русский;\nВозможность выезда специалиста технической поддержки на объект;\nКанал обслуживания: электронная почта (или портал) и телефон;\nНаличие информации о планах производителя по обеспечению технической поддержки Объекта тестирования минимум до 2030 года", "decisive": "Решающее", "compliance": "4", "comment": "GigaCowork предоставляет техническую поддержку на русском языке через email и телефон. Информация о поддержке до 2030 года доступна в документации."}, {"num": "4", "section": "Общие проверки", "requirement": "Наличие у компании-разработчика базы знаний с описанием проблем и способов их решения", "criteria": "У компании-разработчика имеется база знаний с описанием возможных проблем и способов их решения, а также возможность ее передачи / подключения к ней представителей работников эксплуатирующей организации", "decisive": "Не решающее", "compliance": "3", "comment": "База знаний с описанием проблем и решений доступна пользователям платформы через документацию и портал поддержки."}, {"num": "5", "section": "Общие проверки", "requirement": "Наличие у производителя ПО положительного опыта внедрения Объекта тестирования", "criteria": "Объект тестирования успешно применялся или применяется как минимум в одной из организаций Группы Газпром или производитель представил информацию как минимум о трех успешных проектах внедрения", "decisive": "Не решающее", "compliance": "4", "comment": "GigaCowork успешно внедрён в организациях Группы Сбер и других крупных компаниях. Есть подтверждённые кейсы внедрения."}, {"num": "6", "section": "Общие проверки", "requirement": "Встроенный Model Serving Framework (MSF)", "criteria": "Проверить документацию платформы. Просмотреть на наличие упоминания MSF: наличие endpoint для predict, load_model. Подтверждено наличие встроенного высокопроизводительного фреймворка для инференса моделей.", "decisive": "Решающее", "compliance": "4", "comment": "GigaCowork имеет встроенный Model Serving Framework с endpoint для predict и load_model, поддерживает высокопроизводительный инференс."}, {"num": "7", "section": "Мономодальный ассистент", "requirement": "Поддержка интеграции и контролируемого распределения сторонних моделей и БД по различным серверным ресурсам", "criteria": "Действие: 1. Интегрируйте модели распознавания речи, синтеза речи, большой языковой модели, используя инструменты Платформы и распределите их по серверам.\n2. Интегрируйте БД, используйте набор данных «Погода (температуры) в Регионах России за 2023-2025 год».\n3. Проверьте логи выполнения интеграции.\n\nОжидаемый результат: Интеграция всех моделей и БД прошла без ошибок. Платформа предоставляет возможность привязки конкретной модели ИИ к конкретному типу сервера в соответствии с необходимым объемом ресурсов. Модели доступны для использования на Платформе.", "decisive": "", "compliance": "4", "comment": "GigaCowork поддерживает интеграцию сторонних моделей и БД с распределением по серверным ресурсам через графический интерфейс."}, {"num": "8", "section": "Мономодальный ассистент", "requirement": "Поддержка интеграции новых классов моделей", "criteria": "Действие: Убедитесь в возможности подключать новые модели ИИ, не относящиеся к предустановленным классам моделей на примере физико-информированных моделей.\nОткройте панель инструментов, позволяющую добавлять новые модели ИИ;\nДобавьте физико-информированную модель к списку моделей, доступных на Платформе;\nПроверьте логи выполнения интеграции.\n\nОжидаемый результат: Интеграция модели нового класса прошла без ошибок. Платформа предоставляет возможность привязки конкретной модели ИИ к конкретному типу сервера в соответствии с необходимым объемом ресурсов. Модель доступна для использования на Платформе.", "decisive": "", "compliance": "3", "comment": "Платформа позволяет подключать новые модели ИИ через API и коннекторы. Поддержка физико-информированных моделей зависит от конкретной реализации."}, {"num": "9", "section": "Мономодальный ассистент", "requirement": "Обеспечение возможности создания ассистента с использованием графического интерфейса", "criteria": "Действие: 1. Создайте ассистента согласно схеме 1, используя инструменты Платформы.\n2. В чат-боте задайте вопросы:\nКакая температура была во Владимире 18 апреля?\nКакая температура была во Владимире 32 февраля?\n3. Сохраните рабочую область /сохраните шаблон созданного ассистента.\n\nОжидаемый результат: В рабочей области Платформы достаточно инструментов для создания ассистентов. Композиция и логика элементов рабочей области соответствуют требованиям эргономики интерфейса и поддерживают интуитивно однозначное взаимодействие с пользователем.\nОтвет Ассистента соответствует информации базы данных.", "decisive": "", "compliance": "4", "comment": "GigaCowork предоставляет полноценный графический интерфейс для создания ассистентов без написания кода."}, {"num": "10", "section": "Мономодальный ассистент", "requirement": "Возможность программирования логики ассистента на примере БЯМ при помощи графического интерфейса", "criteria": "Действие: Задайте промпт для генерации ответа:\n«Ты полезный ассистент. Правила:\nИспользуй русский язык;\nОтвечай кратко (максимум 3 предложения);\nЕсли недостаточно данных для точного ответа – скажи: «Для точного ответа недостаточно данных».\nВ чат-боте задайте вопрос: «Как отличается потребление газа зимой и летом в России и Европе?»\n\nОжидаемый результат: Конструктор агентов включает интерфейс редактирования промптов. Ассистент корректно ответил на вопрос согласно заданной инструкции.", "decisive": "", "compliance": "4", "comment": "Конструктор агентов включает редактирование промптов, настройку логики через графический интерфейс."}, {"num": "11", "section": "Мономодальный ассистент", "requirement": "Поддержка гибридного режима разработки", "criteria": "Действие: Создайте ассистента способного производить простейшие арифметические операции. Используйте язык программирования Python. Напишите скрипт, позволяющий перемножить два числа: 1234 и 5678.\nПроверьте результаты работы созданного ассистента.\n\nОжидаемый результат: Ассистент создан путем написания программного кода. Ассистент корректно ответил на вопросы.", "decisive": "", "compliance": "4", "comment": "Поддержка гибридного режима: можно создавать ассистентов как через no-code интерфейс, так и через Python-код."}, {"num": "12", "section": "Мономодальный ассистент", "requirement": "Контроль версий", "criteria": "Действие: Убедитесь в возможности создания версий ассистентов, развернутых на Платформе.\n1. В редакторе ассистента найдите раздел, позволяющий просмотреть историю версий;\n2. Измените существующего ассистента, позволяющего обращаться к языковой модели, путем редактирования промпта;\n3. Сохраните новую версию ассистента;\n4. Проверьте список версий\n\nОжидаемый результат: Платформа позволяет осуществлять контроль версий разработанных ассистентов.", "decisive": "", "compliance": "4", "comment": "GigaCowork реализует полноценный контроль версий ассистентов с историей изменений и возможностью отката."}, {"num": "13", "section": "Мономодальный ассистент", "requirement": "A/B-тестирование ассистентов", "criteria": "Действие: 1. В редакторе ассистента найдите раздел, позволяющий проведение A/B тестов;\n2. Запустите новый A/B тест;\n3. Сравните версии ассистентов, созданных в п/п А6\n\nОжидаемый результат: Платформа позволяет проводить A/B тестирование версий разработанных ассистентов", "decisive": "", "compliance": "4", "comment": "Платформа поддерживает A/B-тестирование версий ассистентов для сравнения их эффективности."}, {"num": "14", "section": "Мономодальный ассистент", "requirement": "Поддержка режима параллельной работы ассиcтентов, обрабатывающих запросы с использованием одной и той же модели", "criteria": "Действие: Создайте двух ассистентов (Ассистент 1, Ассистент 2) транскрибации аудиозаписей, использующие единую модель «речь в текст»;\nИспользуйте тестовые аудиозаписи: запись А (15 секунд), запись Б (60 секунд).\nЗапустите обработку файлов одновременно на обоих ассистентах (запись А на Ассистенте 1, запись Б на Ассистенте 2).\n\nОжидаемый результат: Результаты работы ассистентов корректны:\nРезультатом работы Ассистента 1 является тестовая расшифровка записи А;\nРезультатом работы Ассистента 2 является тестовая расшифровка записи Б; \nВ логах отсутствуют ошибки и свидетельства о взаимных блокировках.", "decisive": "", "compliance": "4", "comment": "GigaCowork поддерживает параллельную работу множественных ассистентов с общей моделью без взаимных блокировок."}, {"num": "15", "section": "Мультимодальный ассистент", "requirement": "Поддержка создания мультиагентных систем, обрабатывающих различные типы данных", "criteria": "Действие: Составьте цепочку нод согласно схеме 2, используя модели, развернутые в п.А1 Таблицы 7.\nСоздайте две дочерние области/разные подпроцессы для Агента 1 и Агента 2.\n\nОжидаемый результат: В рабочей области достаточно инструментов для создания мультиагентных систем. Платформа поддерживает создание нескольких подпроцессов.", "decisive": "", "compliance": "4", "comment": "GigaCowork поддерживает создание мультиагентных систем с обработкой различных типов данных через оркестратора."}, {"num": "16", "section": "Мультимодальный ассистент", "requirement": "Поддержка возможности параллельного выполнение задач агентами внутри мультиагентных систем, обрабатывающих различные типы данных", "criteria": "Действие: Задайте промпт для Агента 1: «Проведи транскрибацию аудиозаписи и выдели основные сущности».\nЗадайте промпт для Агента 2: «Выдели основные сущности на изображении».\nУдостоверьтесь, что режим параллельной работы включен.\nЗадайте логику для БЯМ: «Сравни результаты работы Агента 1 и Агента 2. Что общего? Аудиозапись описывает то, что на изображении?»\nСозданному ассистенту подайте на вход изображение и аудиозапись.\nПроанализируйте логи журнала событий, установите факт параллельного выполнения задач.\n\nОжидаемый результат: В аудиоформате получен ответ с корректным сопоставлением сущностей исходного аудифайла и изображения.", "decisive": "", "compliance": "4", "comment": "Платформа обеспечивает параллельное выполнение задач агентами внутри мультиагентных систем."}, {"num": "17", "section": "Мультимодальный ассистент", "requirement": "Поддержка MCP", "criteria": "Действие: Проверка осуществляется через интерфейс платформы.\n1. Откройте раздел платформы, отвечающий за интеграцию МСР-серверов;\n2. Создайте MCP-сервер, добавьте MCP-сервер в инструменты;\n3. В рабочей области на панели инструментов проверьте список на наличие добавленного инструмента\n\nОжидаемый результат: Подтверждена возможность реализации MCP-серверов.", "decisive": "", "compliance": "4", "comment": "GigaCowork поддерживает MCP (Model Context Protocol) для интеграции внешних инструментов и сервисов."}, {"num": "18", "section": "Дообучение", "requirement": "Инструменты дообучения моделей", "criteria": "Действие: 1. Откройте раздел Платформы, позволяющий производить адаптации развернутых языковых моделей;\n2. Найдите в пресетах методов опции дообучения модели и/или иные методы адаптации;\n3. Загрузите тестовый набор данных, предназначенный для адаптации моделей;\n4. Выберите базовую модель и запустите дообучение (задача MLM);\n5. Проследите за процессом адаптации модели в логах. Убедитесь в том, что точность модели по задаче MLM во время обучения и после обучения изменилась.\n\nОжидаемый результат: Платформа позволяет адаптировать языковые мо-дели, развернутые на Платформе.", "decisive": "", "compliance": "3", "comment": "GigaCowork предоставляет инструменты для адаптации/дообучения языковых моделей. Поддержка MLM-задач зависит от конкретной модели."}, {"num": "19", "section": "Несколько моделей", "requirement": "Поддержка возможности выполнения задач агентами внутри мультиагентных систем, обрабатывающих одинаковые типы данных", "criteria": "Действие: 1. Создайте Ассистента 1 согласно схеме 1, используя инструменты Платформы. Используйте представленную LLM.\n2. Создайте Ассистента 2 согласно схеме 1, используя инструменты Платформы. Языковая модель должна отличаться от той, которая используется в Ассистенте 1. Выберите либо LLM, либо SLM.\n3. Задайте промпт для Ассистента 1: «Какая температура была во Владимире 18 апреля?».\n4. Задайте Ассистента для Агента 2: «Какая температура была во Владимире 18 апреля?».\n5. Удостоверьтесь, что режим параллельной работы включен. Запустите работу Ассистентов 1 и 2.\n6. Проанализируйте логи журнала событий на предмет параллельного выполнения задач.\n\nОжидаемый результат: Подтверждена полнофункциональная поддержка выполнения задач агентами внутри мультиагентных систем, обрабатывающих одинаковые типы данных", "decisive": "", "compliance": "4", "comment": "GigaCowork поддерживает использование нескольких моделей одного класса (например, несколько LLM) параллельно."}, {"num": "20", "section": "Модели ИИ — Текстовые", "requirement": "LLM — Large Language Model", "criteria": "большая языковая модель", "decisive": "Решающее", "compliance": "4", "comment": "GigaCowork поддерживает интеграцию LLM (включая GigaChat, YandexGPT, open-source модели)."}, {"num": "21", "section": "Модели ИИ — Текстовые", "requirement": "SLM — Small Language Model", "criteria": "оптимизированные малые лёгкие модели", "decisive": "Не решающее", "compliance": "3", "comment": "Поддержка SLM зависит от конкретной реализации. Платформа позволяет развернуть малые модели."}, {"num": "22", "section": "Модели ИИ — Текстовые", "requirement": "Embedding Model", "criteria": "модели векторных представлений текста", "decisive": "Решающее", "compliance": "4", "comment": "GigaCowork поддерживает Embedding-модели для векторных представлений текста."}, {"num": "23", "section": "Модели ИИ — Текстовые", "requirement": "Reranker", "criteria": "модели ранжирования текстовых результатов", "decisive": "Не решающее", "compliance": "3", "comment": "Reranker-модели могут быть интегрированы через кастомные коннекторы."}, {"num": "24", "section": "Модели ИИ — Текстовые", "requirement": "Classification Model", "criteria": "классификация текста", "decisive": "Не решающее", "compliance": "3", "comment": "Classification-модели поддерживаются через интеграцию сторонних решений."}, {"num": "25", "section": "Модели ИИ — Визуальные", "requirement": "CNN — Convolutional Neural Network", "criteria": "базовая архитектура для обработки изображений", "decisive": "Не решающее", "compliance": "2", "comment": "CNN-модели могут быть интегрированы, но требуют кастомной настройки."}, {"num": "26", "section": "Модели ИИ — Визуальные", "requirement": "ViT — Vision Transformer", "criteria": "модели с архитектурой трансформеров для обработки изображений", "decisive": "Не решающее", "compliance": "2", "comment": "ViT-модели поддерживаются через интеграцию."}, {"num": "27", "section": "Модели ИИ — Визуальные", "requirement": "Object Detection Model", "criteria": "детекция объектов (YOLO, Faster R-CNN и др.)", "decisive": "Не решающее", "compliance": "2", "comment": "Object Detection модели (YOLO и др.) требуют кастомной интеграции."}, {"num": "28", "section": "Модели ИИ — Визуальные", "requirement": "Image Classification Model", "criteria": "классификация изображений", "decisive": "Не решающее", "compliance": "2", "comment": "Image Classification модели поддерживаются через интеграцию."}, {"num": "29", "section": "Модели ИИ — Визуальные", "requirement": "Face Recognition Model", "criteria": "распознавание лиц", "decisive": "Не решающее", "compliance": "2", "comment": "Face Recognition модели требуют кастомной интеграции."}, {"num": "30", "section": "Модели ИИ — Визуальные", "requirement": "OCR Model", "criteria": "распознавание текста в изображениях (Tesseract, PaddleOCR и др.", "decisive": "Решающее", "compliance": "3", "comment": "OCR-модели поддерживаются (интеграция с Tesseract, PaddleOCR и др.)."}, {"num": "31", "section": "Модели ИИ — Визуальные", "requirement": "Super-Resolution Model", "criteria": "повышение разрешения изображений", "decisive": "Не решающее", "compliance": "2", "comment": "Super-Resolution модели требуют кастомной интеграции."}, {"num": "32", "section": "Модели ИИ — Аудио", "requirement": "ASR — Automatic Speech Recognition", "criteria": "автоматическое распознавание речи (Whisper, Wav2Vec2 и др.)", "decisive": "Решающее", "compliance": "4", "comment": "GigaCowork поддерживает ASR-модели (распознавание речи, включая Whisper)."}, {"num": "33", "section": "Модели ИИ — Аудио", "requirement": "TTS", "criteria": "Text-to-Speech, перевод текста в звук (Tacotron, VITS, Bark и др.)", "decisive": "Решающее", "compliance": "4", "comment": "GigaCowork поддерживает TTS-модели (синтез речи)."}, {"num": "34", "section": "Модели ИИ — Аудио", "requirement": "Voice Conversion Model", "criteria": "преобразование голоса", "decisive": "Не решающее", "compliance": "2", "comment": "Voice Conversion модели требуют кастомной интеграции."}, {"num": "35", "section": "Модели ИИ — Аудио", "requirement": "Audio Classification Model", "criteria": "классификация звуков (музыка, шумы и др.)", "decisive": "Не решающее", "compliance": "2", "comment": "Audio Classification модели требуют кастомной интеграции."}, {"num": "36", "section": "Модели ИИ — Аудио", "requirement": "Speaker Recognition Model", "criteria": "идентификация диктора", "decisive": "Не решающее", "compliance": "2", "comment": "Speaker Recognition модели требуют кастомной интеграции."}, {"num": "37", "section": "Модели ИИ — Аудио", "requirement": "Audio Enhancement Model", "criteria": "шумоподавление", "decisive": "Не решающее", "compliance": "2", "comment": "Audio Enhancement модели требуют кастомной интеграции."}, {"num": "38", "section": "Модели ИИ — Видео", "requirement": "Video Classification Model", "criteria": "классификация видео", "decisive": "Не решающее", "compliance": "1", "comment": "Video Classification модели - ограниченная поддержка, требуется кастомная разработка."}, {"num": "39", "section": "Модели ИИ — Видео", "requirement": "Action Recognition Model", "criteria": "распознавание действий", "decisive": "Не решающее", "compliance": "1", "comment": "Action Recognition модели - ограниченная поддержка."}, {"num": "40", "section": "Модели ИИ — Видео", "requirement": "Video Object Tracking", "criteria": "отслеживание объектов", "decisive": "Не решающее", "compliance": "1", "comment": "Video Object Tracking модели - ограниченная поддержка."}, {"num": "41", "section": "Модели ИИ — Видео", "requirement": "Video Generation Model", "criteria": "генерация видео (Sora, Runway и др.)", "decisive": "Не решающее", "compliance": "1", "comment": "Video Generation модели - ограниченная поддержка."}, {"num": "42", "section": "Модели ИИ — Видео", "requirement": "Video Captioning Model", "criteria": "описание видео текстом", "decisive": "Не решающее", "compliance": "1", "comment": "Video Captioning модели - ограниченная поддержка."}, {"num": "43", "section": "Модели ИИ — Мультимодальные", "requirement": "VLM — Visual Language Model", "criteria": "Визуальные языковые модели, позволяющие обрабатывать как графическую, так и текстовую информацию", "decisive": "Решающее", "compliance": "4", "comment": "GigaCowork поддерживает VLM (Vision Language Models) для обработки изображений и текста."}, {"num": "44", "section": "Модели ИИ — Мультимодальные", "requirement": "CLIP — Contrastive Learning-Image Pre-training", "criteria": "Позволяют устанавливать взаимосвязи по типу текст-изображение", "decisive": "Не решающее", "compliance": "3", "comment": "CLIP-модели могут быть интегрированы через кастомные коннекторы."}, {"num": "45", "section": "Модели ИИ — Мультимодальные", "requirement": "Audio-Visual Model", "criteria": "Совместная обработка аудио и видео", "decisive": "Не решающее", "compliance": "2", "comment": "Audio-Visual модели требуют кастомной интеграции."}, {"num": "46", "section": "События запуска", "requirement": "По расписанию", "criteria": "Заявлено в документации", "decisive": "", "compliance": "4", "comment": "GigaCowork поддерживает запуск цепочек по расписанию (cron-подобный функционал)."}, {"num": "47", "section": "События запуска", "requirement": "По обращению", "criteria": "Заявлено в документации", "decisive": "", "compliance": "4", "comment": "GigaCowork поддерживает запуск цепочек по обращению (event-driven)."}, {"num": "48", "section": "Операнды логики", "requirement": "If/Else", "criteria": "Заявлено в документации", "decisive": "", "compliance": "4", "comment": "GigaCowork поддерживает условную логику If/Else в конструкторе агентов."}, {"num": "49", "section": "Операнды логики", "requirement": "Switch", "criteria": "Заявлено в документации", "decisive": "", "compliance": "4", "comment": "GigaCowork поддерживает Switch-конструкции для множественных условий."}, {"num": "50", "section": "Операнды логики", "requirement": "While", "criteria": "Заявлено в документации", "decisive": "", "compliance": "3", "comment": "While-циклы поддерживаются с ограничениями (требуют настройки таймаутов)."}, {"num": "51", "section": "Операнды логики", "requirement": "Parallel", "criteria": "Заявлено в документации", "decisive": "", "compliance": "4", "comment": "GigaCowork поддерживает параллельное выполнение (Parallel) задач."}, {"num": "52", "section": "Операнды логики", "requirement": "Wait", "criteria": "Заявлено в документации", "decisive": "", "compliance": "4", "comment": "GigaCowork поддерживает Wait-операции для синхронизации."}, {"num": "53", "section": "Защита информации", "requirement": "Локализация и суверенность данных", "criteria": "Платформа должна обеспечивать маршрутизации запросов ИИ-агентов исключительно на территории РФ, с возможностью принудительного блокирования несанкционированной трансграничной передачи.", "decisive": "Не решающее", "compliance": "4", "comment": "GigaCowork обеспечивает локализацию данных на территории РФ, соответствует требованиям 152-ФЗ."}, {"num": "54", "section": "Защита информации", "requirement": "Маркировка синтетического контента", "criteria": "Наличие встроенного механизма автоматического внедрения машиночитаемых и визуально воспринимаемых меток (водяных знаков) во все аудио-, видео- и текстовые материалы, генерируемые или обрабатываемые ИИ-агентами.", "decisive": "Не решающее", "compliance": "2", "comment": "Маркировка синтетического контента - функциональность в разработке или требует кастомной реализации."}, {"num": "55", "section": "Защита информации", "requirement": "Мониторинг инцидентов и аварийное реагирование", "criteria": "Наличие встроенной подсистемы журналирования событий, выявления аномалий в поведении агентов и автоматической приостановки эксплуатации при обнаружении угрозы причинения вреда или нарушения безопасности.", "decisive": "Не решающее", "compliance": "4", "comment": "GigaCowork имеет подсистему мониторинга, журналирования событий и выявления аномалий."}, {"num": "56", "section": "Защита информации", "requirement": "Управление доступом и аудит", "criteria": "Реализация и ведение защищенного от модификации журнала всех запросов, изменений параметров, цепочек принятия решений и результатов генерации.", "decisive": "Не решающее", "compliance": "4", "comment": "GigaCowork реализует управление доступом (RBAC) и аудит всех действий пользователей."}];
 
+  // ---- ID строк и слияние одновременных правок ----
+  // Каждая строка таблицы получает служебный _rid. У «старых» строк без _rid
+  // он вычисляется детерминированно (ключ + позиция + содержимое), поэтому
+  // браузер и MCP-сервер независимо получают одинаковые ID для одних данных.
+  function pmoIsPlainObject(x){ return x !== null && typeof x === 'object' && !Array.isArray(x); }
+  function pmoStableStringify(x){
+    if(x === undefined) return 'undefined';
+    if(x === null || typeof x !== 'object') return JSON.stringify(x);
+    if(Array.isArray(x)) return '[' + x.map(function(v){ return v === undefined ? 'null' : pmoStableStringify(v); }).join(',') + ']';
+    return '{' + Object.keys(x).sort().filter(function(k){ return x[k] !== undefined; })
+      .map(function(k){ return JSON.stringify(k) + ':' + pmoStableStringify(x[k]); }).join(',') + '}';
+  }
+  function pmoDeepEqual(a, b){ return pmoStableStringify(a) === pmoStableStringify(b); }
+  function pmoHash(str){
+    var h = 0x811c9dc5;
+    for(var i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    return h.toString(36);
+  }
+  function pmoNewRowId(){ return 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  // Массив строк = непустой массив объектов без поля id (у колонок есть id,
+  // их ID менять не нужно).
+  function pmoIsRowArray(value){
+    return Array.isArray(value) && value.length > 0 && value.every(function(el){
+      return pmoIsPlainObject(el) && !Object.prototype.hasOwnProperty.call(el, 'id');
+    });
+  }
+  function pmoEnsureRowIds(key, value){
+    if(!pmoIsRowArray(value)) return false;
+    var seen = Object.create(null), changed = false;
+    value.forEach(function(row, i){
+      var rid = row._rid;
+      if(typeof rid !== 'string' || !rid || seen[rid]){
+        var content = {};
+        Object.keys(row).forEach(function(k){ if(k !== '_rid') content[k] = row[k]; });
+        var base = 'r' + pmoHash(key + '|' + i + '|' + pmoStableStringify(content));
+        rid = base;
+        for(var n = 1; seen[rid]; n++) rid = base + '-' + n;
+        row._rid = rid;
+        changed = true;
+      }
+      seen[rid] = true;
+    });
+    return changed;
+  }
+  function pmoKeyField(arr){
+    if(!Array.isArray(arr)) return null;
+    if(arr.length === 0) return '*';
+    if(arr.every(function(el){ return pmoIsPlainObject(el) && typeof el._rid === 'string' && el._rid; })) return '_rid';
+    if(arr.every(function(el){ return pmoIsPlainObject(el) && (typeof el.id === 'string' || typeof el.id === 'number'); })) return 'id';
+    return null;
+  }
+  // Трёхстороннее слияние: base — версия, от которой оба начали; local —
+  // наша; remote — то, что успел сохранить кто-то другой. Изменения обеих
+  // сторон сохраняются; при правке одного и того же значения побеждает local
+  // (это самое свежее действие пользователя, который сейчас сохраняет).
+  function pmoMerge3(base, local, remote){
+    if(pmoDeepEqual(local, remote)) return local;
+    if(pmoDeepEqual(local, base)) return remote;
+    if(pmoDeepEqual(remote, base)) return local;
+    var has = Object.prototype.hasOwnProperty;
+    if(pmoIsPlainObject(local) && pmoIsPlainObject(remote)){
+      var b = pmoIsPlainObject(base) ? base : {};
+      var out = {};
+      var keys = Object.keys(remote).concat(Object.keys(local).filter(function(k){ return !has.call(remote, k); }));
+      keys.forEach(function(k){
+        var inL = has.call(local, k), inR = has.call(remote, k), inB = has.call(b, k);
+        if(inL && inR) out[k] = pmoMerge3(inB ? b[k] : undefined, local[k], remote[k]);
+        else if(inL){ if(!(inB && pmoDeepEqual(b[k], local[k]))) out[k] = local[k]; }
+        else if(!(inB && pmoDeepEqual(b[k], remote[k]))) out[k] = remote[k];
+      });
+      return out;
+    }
+    if(Array.isArray(local) && Array.isArray(remote)){
+      var kl = pmoKeyField(local), kr = pmoKeyField(remote);
+      var key = kl === '*' ? kr : ((kr === '*' || kr === kl) ? kl : null);
+      if(key && key !== '*') return pmoMergeKeyedArrays(base, local, remote, key);
+    }
+    return local;
+  }
+  function pmoMergeKeyedArrays(base, local, remote, key){
+    function index(arr){
+      var m = new Map();
+      (Array.isArray(arr) ? arr : []).forEach(function(el){ if(pmoIsPlainObject(el) && el[key] !== undefined) m.set(el[key], el); });
+      return m;
+    }
+    function ids(arr){ return (Array.isArray(arr) ? arr : []).map(function(el){ return pmoIsPlainObject(el) ? el[key] : undefined; }); }
+    var bMap = index(base), lMap = index(local), rMap = index(remote);
+    var merged = new Map();
+    lMap.forEach(function(l, id){
+      if(rMap.has(id)){ merged.set(id, pmoMerge3(bMap.get(id), l, rMap.get(id))); return; }
+      // Удалена у другого: оставляем, только если мы её успели изменить.
+      if(bMap.has(id) && pmoDeepEqual(bMap.get(id), l)) return;
+      merged.set(id, l);
+    });
+    rMap.forEach(function(r, id){
+      if(lMap.has(id) || bMap.has(id)) return; // есть у нас либо удалена нами
+      merged.set(id, r);
+    });
+    var baseOrder = ids(base).filter(function(id){ return merged.has(id); });
+    var localOrder = ids(local).filter(function(id){ return merged.has(id); });
+    var remoteOrder = ids(remote).filter(function(id){ return merged.has(id); });
+    function moved(map, order){
+      return !pmoDeepEqual(order.filter(function(id){ return bMap.has(id); }),
+                           baseOrder.filter(function(id){ return map.has(id); }));
+    }
+    // Порядок берём у того, кто переставлял строки; иначе — серверный.
+    var primary = (moved(lMap, localOrder) && !moved(rMap, remoteOrder)) ? localOrder : remoteOrder;
+    var secondary = primary === localOrder ? remoteOrder : localOrder;
+    var seq = primary.slice();
+    var inSeq = new Set(seq);
+    var secondarySet = new Set(secondary);
+    secondary.forEach(function(id, i){
+      if(inSeq.has(id)) return;
+      // Добавленные в конец — в конец; иначе сразу после предыдущей строки,
+      // пропуская чужие новые строки, стоящие за ней.
+      var tail = secondary.slice(i + 1).every(function(x){ return !inSeq.has(x); });
+      var pos = seq.length;
+      if(!tail){
+        pos = 0;
+        for(var j = i - 1; j >= 0; j--){ var p = seq.indexOf(secondary[j]); if(p !== -1){ pos = p + 1; break; } }
+        while(pos < seq.length && !secondarySet.has(seq[pos])) pos++;
+      }
+      seq.splice(pos, 0, id);
+      inSeq.add(id);
+    });
+    return seq.map(function(id){ return merged.get(id); });
+  }
+  // @pmo-shared-end
+
   // ================= Storage helpers (shared) =================
   var hasWindowStorage = (typeof window.storage !== 'undefined' && !!window.storage);
   var hasLocalStorage = (function(){
@@ -1603,21 +1736,61 @@
 
   // ---- Общий backend (Postgres через /api/data/:key) — данные видны всем по ссылке ----
   function apiKeyUrl(key){ return '/api/data/' + encodeURIComponent(key); }
-  async function apiGetValue(key){
+  // null — ключа на сервере нет.
+  async function apiGetEntry(key){
     var res = await fetch(apiKeyUrl(key), { credentials: 'same-origin' });
-    if(res.status === 404) return undefined;
+    if(res.status === 404) return null;
     if(!res.ok) throw new Error('api get failed: ' + res.status);
     var data = await res.json();
-    return JSON.stringify(data.value);
+    return { value: data.value, version: typeof data.version === 'number' ? data.version : 0 };
   }
-  async function apiSetValue(key, json){
+  function ConflictError(current){ this.name = 'ConflictError'; this.current = current; }
+  // Сохраняет, только если на сервере всё ещё baseVersion; иначе ConflictError
+  // с актуальным значением. Возвращает новую версию.
+  async function apiSetValue(key, json, baseVersion){
     var res = await fetch(apiKeyUrl(key), {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
       credentials: 'same-origin',
-      body: JSON.stringify({ value: JSON.parse(json) })
+      body: JSON.stringify({ value: JSON.parse(json), baseVersion: baseVersion })
     });
+    if(res.status === 409){
+      var d = await res.json();
+      throw new ConflictError({ exists: !!d.exists, value: d.value, version: d.version || 0 });
+    }
     if(!res.ok) throw new Error('api set failed: ' + res.status);
+    var data = await res.json();
+    return data.version;
+  }
+
+  // Что лежит на сервере по каждому ключу на момент последнего чтения/записи:
+  // { version, json }, json = null — ключа на сервере нет. Это «база» для
+  // слияния, когда кто-то (другой пользователь или Коворк через MCP) успел
+  // сохранить раньше нас.
+  var serverSnapshots = Object.create(null);
+
+  // Ключ хранилища → {get, set} состояния страницы (регистрируют контроллеры).
+  var keyBindings = [];
+  function bindingFor(key){
+    for(var i = 0; i < keyBindings.length; i++){ var b = keyBindings[i](key); if(b) return b; }
+    return null;
+  }
+
+  // Слияние перерисовывает таблицу и меняет индексы строк, поэтому его нельзя
+  // применять, пока пользователь что-то редактирует или открыто модальное окно.
+  function isUiBusy(){
+    return !!activeCell || !!currentPopover || !!document.querySelector('.qm-overlay, .pt-overlay');
+  }
+  function waitForIdleUi(){
+    return new Promise(function(resolve){
+      (function check(){ if(!isUiBusy()) resolve(); else setTimeout(check, 400); })();
+    });
+  }
+  function applyMergedValue(key, merged){
+    var b = bindingFor(key);
+    if(b){ b.set(merged); return; }
+    var q = saveQueues[key];
+    if(q) q.latest = JSON.stringify(merged);
   }
   async function apiDeleteValue(key){
     var res = await fetch(apiKeyUrl(key), { method: 'DELETE', credentials: 'same-origin' });
@@ -1636,45 +1809,82 @@
   // silently overwrites newer data with older data. Coalescing to "only the
   // latest snapshot, sent strictly after the previous send finishes" makes
   // that impossible — the final saved value is always the most recent edit.
-  var saveQueues = Object.create(null); // key -> { latest: string, inFlight: boolean }
+  var saveQueues = Object.create(null); // key -> { latest: string, inFlight: boolean, resend: boolean }
   function persist(key, value){
+    pmoEnsureRowIds(key, value);
     var json = JSON.stringify(value);
     var q = saveQueues[key];
-    if(!q){ q = saveQueues[key] = { latest: null, inFlight: false }; }
+    if(!q){ q = saveQueues[key] = { latest: null, inFlight: false, resend: false }; }
     q.latest = json;
     if(!q.inFlight) runSaveLoop(key, q);
   }
   function runSaveLoop(key, q){
     var json = q.latest;
     q.inFlight = true;
+    q.resend = false;
     pendingSaveCount++;
     var savePromise = hasWindowStorage
       ? window.storage.set(key, json, false).then(function(){ flashSaved(); }).catch(function(e){
           console.error('window.storage failed, falling back', e);
-          return persistToApiOrLocal(key, json);
+          return persistToApiOrLocal(key, q, json);
         })
-      : persistToApiOrLocal(key, json);
+      : persistToApiOrLocal(key, q, json);
     savePromise.finally(function(){
       pendingSaveCount--;
-      if(q.latest !== json){
-        runSaveLoop(key, q); // newer edits arrived while this save was in flight
+      if(q.latest !== json || q.resend){
+        runSaveLoop(key, q); // newer edits arrived, or a merge needs to be sent
       } else {
         q.inFlight = false;
       }
     });
   }
-  function persistToApiOrLocal(key, json){
-    return apiSetValue(key, json).then(function(){ flashSaved(); }).catch(function(e){
+  function persistToApiOrLocal(key, q, json){
+    var snap = serverSnapshots[key];
+    if(snap && snap.json === json) return Promise.resolve(); // на сервере уже ровно это
+    var baseVersion = snap ? snap.version : 0;
+    return apiSetValue(key, json, baseVersion).then(function(version){
+      serverSnapshots[key] = { version: version, json: json };
+      flashSaved();
+    }).catch(function(e){
+      if(e instanceof ConflictError) return resolveConflict(key, q, e.current);
       console.error('backend save failed, falling back to localStorage', e);
       if(localSet(key, json)) flashSaved(); else flashSaveFailed();
     });
   }
+  // Кто-то сохранил этот ключ раньше нас: сливаем их изменения с нашими и
+  // отправляем результат заново уже поверх их версии — ничьи правки не теряются.
+  function resolveConflict(key, q, current){
+    return waitForIdleUi().then(function(){
+      var snap = serverSnapshots[key];
+      var base = (snap && snap.json != null) ? JSON.parse(snap.json) : undefined;
+      var local = JSON.parse(q.latest);
+      var remote = current.exists ? current.value : undefined;
+      pmoEnsureRowIds(key, base);
+      pmoEnsureRowIds(key, remote);
+      serverSnapshots[key] = { version: current.version, json: remote === undefined ? null : JSON.stringify(remote) };
+      var merged = remote === undefined ? local : pmoMerge3(base, local, remote);
+      applyMergedValue(key, merged);
+      q.resend = true;
+    });
+  }
+  // Явные действия («Сбросить», тема): при конфликте перезаписывают значение.
   async function persistNow(key, value){
+    pmoEnsureRowIds(key, value);
     var json = JSON.stringify(value);
     if(hasWindowStorage){
       try{ await window.storage.set(key, json, false); return; }catch(e){}
     }
-    try{ await apiSetValue(key, json); return; }catch(e){ console.error('backend save failed', e); }
+    for(var attempt = 0; attempt < 3; attempt++){
+      var snap = serverSnapshots[key];
+      try{
+        var version = await apiSetValue(key, json, snap ? snap.version : 0);
+        serverSnapshots[key] = { version: version, json: json };
+        return;
+      }catch(e){
+        if(!(e instanceof ConflictError)){ console.error('backend save failed', e); break; }
+        serverSnapshots[key] = { version: e.current.version, json: e.current.exists ? JSON.stringify(e.current.value) : null };
+      }
+    }
     localSet(key, json);
   }
   async function loadValue(key){
@@ -1684,15 +1894,21 @@
         if(r && r.value) return r.value;
       }catch(e){}
     }
-    var apiValue, apiReachable = true;
-    try{ apiValue = await apiGetValue(key); }
+    var entry, apiReachable = true;
+    try{ entry = await apiGetEntry(key); }
     catch(e){ apiReachable = false; console.error('backend load failed, falling back to localStorage', e); }
-    if(apiValue !== undefined) return apiValue;
+    if(entry){
+      pmoEnsureRowIds(key, entry.value);
+      var loadedJson = JSON.stringify(entry.value);
+      serverSnapshots[key] = { version: entry.version, json: loadedJson };
+      return loadedJson;
+    }
+    if(apiReachable) serverSnapshots[key] = { version: 0, json: null };
     var local = localGet(key);
     if(apiReachable && local !== null){
       // первая загрузка после подключения БД: поднимаем то, что раньше было
       // сохранено только в этом браузере, чтобы оно стало видно всем по ссылке
-      apiSetValue(key, local).catch(function(e){ console.error('migration to backend failed', e); });
+      persist(key, JSON.parse(local));
     }
     return local;
   }
@@ -1700,9 +1916,52 @@
     if(hasWindowStorage){
       try{ await window.storage.delete(key, false); }catch(e){}
     }
-    try{ await apiDeleteValue(key); }catch(e){ console.error('backend delete failed', e); }
+    try{ await apiDeleteValue(key); serverSnapshots[key] = { version: 0, json: null }; }
+    catch(e){ console.error('backend delete failed', e); }
     if(hasLocalStorage){
       try{ window.localStorage.removeItem(LOCAL_PREFIX + key); }catch(e){}
+    }
+  }
+
+  // Подтягиваем чужие изменения (других пользователей и Коворка через MCP),
+  // чтобы открытая страница не показывала устаревшие данные.
+  var remotePollBusy = false;
+  async function pollRemoteChanges(){
+    if(hasWindowStorage || remotePollBusy || document.visibilityState !== 'visible' || isUiBusy()) return;
+    remotePollBusy = true;
+    try{
+      var res = await fetch('/api/data-versions', { credentials: 'same-origin' });
+      if(!res.ok) return;
+      var versions = (await res.json()).versions || {};
+      var keys = Object.keys(serverSnapshots);
+      for(var i = 0; i < keys.length; i++){
+        var key = keys[i];
+        var snap = serverSnapshots[key];
+        if((versions[key] || 0) === snap.version) continue;
+        var b = bindingFor(key);
+        var q = saveQueues[key];
+        if(!b || (q && q.inFlight)) continue; // своё сохранение разрешит конфликт само
+        if(isUiBusy()) return;
+        var entry = await apiGetEntry(key);
+        q = saveQueues[key];
+        if((q && q.inFlight) || isUiBusy()) continue;
+        snap = serverSnapshots[key];
+        var base = snap.json != null ? JSON.parse(snap.json) : undefined;
+        var remote = entry ? entry.value : undefined;
+        pmoEnsureRowIds(key, base);
+        pmoEnsureRowIds(key, remote);
+        serverSnapshots[key] = { version: entry ? entry.version : 0, json: remote === undefined ? null : JSON.stringify(remote) };
+        if(remote === undefined) continue;
+        var current = b.get();
+        if(current === undefined) continue;
+        var local = clone(current);
+        var merged = pmoMerge3(base, local, remote);
+        if(!pmoDeepEqual(merged, local) || !pmoDeepEqual(merged, remote)) b.set(merged);
+      }
+    }catch(e){
+      console.error('remote poll failed', e);
+    }finally{
+      remotePollBusy = false;
     }
   }
 
@@ -1759,8 +2018,56 @@
     c.persistPlanningWeeks = function(){ persist(c.storagePrefix + '-planningweeks', c.state.planningWeeks); };
     c.persistDeletedColumnIds = function(){ persist(c.storagePrefix + '-deletedcolumns', c.deletedColumnIds); };
     c.persistDeletedSectionKeys = function(){ persist(c.storagePrefix + '-deletedsections', c.deletedSectionKeys); };
+    keyBindings.push(function(key){ return controllerKeyBinding(c, key); });
     controllers[opts.viewKey] = c;
     return c;
+  }
+
+  // Как применить к странице значение ключа, пришедшее с сервера/после слияния.
+  function controllerKeyBinding(c, key){
+    var prefix = c.storagePrefix + '-';
+    if(key.indexOf(prefix) !== 0) return null;
+    var suffix = key.slice(prefix.length);
+    function done(){ render(c); }
+    switch(suffix){
+      case 'columns':
+        return { get: function(){ return c.state.columns; },
+                 set: function(v){ c.state.columns = v; c.persistColumns(); done(); } };
+      case 'titles':
+        return { get: function(){ return c.state.titles; },
+                 set: function(v){ c.state.titles = v; c.persistTitles(); done(); } };
+      case 'deletedcolumns':
+        return { get: function(){ return c.deletedColumnIds; },
+                 set: function(v){ c.deletedColumnIds = v; c.persistDeletedColumnIds(); done(); } };
+      case 'deletedsections':
+        return { get: function(){ return c.deletedSectionKeys; },
+                 set: function(v){ c.deletedSectionKeys = v; c.persistDeletedSectionKeys(); done(); } };
+      case 'planningweeks':
+        if(!c.hasPlanning) return null;
+        return { get: function(){ return c.state.planningWeeks; },
+                 set: function(v){ c.state.planningWeeks = v; c.persistPlanningWeeks(); done(); } };
+      case 'sectionkeys':
+        return { get: function(){ return c.sectionKeys; },
+                 set: function(v){
+                   var added = v.filter(function(k){ return c.sectionKeys.indexOf(k) === -1; });
+                   c.sectionKeys = v;
+                   added.forEach(function(k){ if(!c.state[k]) c.state[k] = []; if(!c.state.titles[k]) c.state.titles[k] = 'Новый раздел'; });
+                   c.persistSectionKeys();
+                   done();
+                   added.forEach(function(k){
+                     loadValue(prefix + k).then(function(s){ if(s){ c.state[k] = JSON.parse(s); render(c); } });
+                   });
+                 } };
+      default:
+        if(c.sectionKeys.indexOf(suffix) === -1) return null;
+        return { get: function(){ return c.state[suffix]; },
+                 set: function(v){
+                   c.state[suffix] = v;
+                   renumber(c, suffix);
+                   persistTouchedSections(c, [suffix]);
+                   done();
+                 } };
+    }
   }
 
   async function loadController(c){
@@ -1846,6 +2153,18 @@
           try{ var parsed = JSON.parse(pw); if(parsed && parsed.length) c.state.planningWeeks = parsed; }catch(e2){}
         }
       }
+      // Ключей, которых нет на сервере, страница показывает значения по
+      // умолчанию — они и есть «база» для слияния, если потом кто-то (например,
+      // Коворк через MCP) создаст этот ключ, начав с тех же значений.
+      Object.keys(serverSnapshots).forEach(function(key){
+        var snap = serverSnapshots[key];
+        if(snap.version !== 0 || snap.json !== null || key.indexOf(c.storagePrefix + '-') !== 0) return;
+        var b = bindingFor(key);
+        var v = b && b.get();
+        if(v === undefined || v === null) return;
+        pmoEnsureRowIds(key, v);
+        snap.json = JSON.stringify(v);
+      });
     }catch(e){ console.error('loadController failed for', c.viewKey, e); }
     render(c);
   }
@@ -3280,7 +3599,7 @@
   }
 
   function addRowToSection(c, section){
-    var newRow = {};
+    var newRow = { _rid: pmoNewRowId() };
     c.state.columns.forEach(function(col){ newRow[col.id] = ''; });
     c.state[section].push(newRow);
     renumber(c, section);
@@ -4239,6 +4558,10 @@
     loadController(registryController);
     loadController(projectsController);
     loadController(requirementsController);
+    setInterval(pollRemoteChanges, 15000);
+    document.addEventListener('visibilitychange', function(){
+      if(document.visibilityState === 'visible') pollRemoteChanges();
+    });
   };
 })();
 </script>

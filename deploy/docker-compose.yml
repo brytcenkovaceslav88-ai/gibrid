@@ -42,6 +42,25 @@ services:
     networks:
       - internal
 
+  # MCP-коннектор для Коворка (https://<домен>/mcp). Профиль "mcp": сервис
+  # поднимается только явно (docker compose --profile mcp up -d mcp) и не
+  # мешает деплоям на серверах, где он не нужен.
+  mcp:
+    build: ./mcp
+    container_name: pmo_mcp
+    restart: unless-stopped
+    profiles: ["mcp"]
+    env_file: .env
+    environment:
+      INDEX_HTML_PATH: /app/site/index.html
+      AUTH_HEADERS: x-api-key
+    volumes:
+      - ./frontend:/app/site:ro
+    depends_on:
+      - postgres
+    networks:
+      - internal
+
   certbot:
     image: certbot/certbot
     container_name: pmo_certbot

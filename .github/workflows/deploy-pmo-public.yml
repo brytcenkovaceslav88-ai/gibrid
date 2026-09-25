@@ -26,6 +26,9 @@ jobs:
           mkdir -p /opt/pmo/deploy/backend /opt/pmo/deploy/nginx
           cp -rf deploy/backend/. /opt/pmo/deploy/backend/
           cp -rf deploy/nginx/. /opt/pmo/deploy/nginx/
+          mkdir -p /opt/pmo/deploy/mcp
+          rsync -a --delete --exclude node_modules deploy/mcp/ /opt/pmo/deploy/mcp/ 2>/dev/null \
+            || { rm -rf /opt/pmo/deploy/mcp/src; cp -rf deploy/mcp/. /opt/pmo/deploy/mcp/; }
           cp deploy/docker-compose.yml /opt/pmo/deploy/docker-compose.yml
 
       - name: Check .env exists
@@ -33,6 +36,27 @@ jobs:
           if [ ! -f /opt/pmo/deploy/.env ]; then
             echo "::error::/opt/pmo/deploy/.env is missing — bootstrap the server once first (see deploy/README.md), then re-run this workflow."
             exit 1
+          fi
+
+      # Ключ доступа MCP-коннектора (Коворк). Генерируется один раз, хранится
+      # в .env и в /opt/pmo/mcp_api_key.txt (только владелец). В лог не
+      # выводится — посмотреть: ssh на сервер и cat /opt/pmo/mcp_api_key.txt
+      - name: Ensure MCP API key
+        working-directory: /opt/pmo/deploy
+        run: |
+          set -e
+          if ! grep -q '^MCP_API_KEYS=.\+' .env; then
+            umask 077
+            KEY="pmo_$(openssl rand -hex 24)"
+            if [ -w .env ]; then
+              printf '\nMCP_API_KEYS=%s\n' "$KEY" >> .env
+            else
+              printf '\nMCP_API_KEYS=%s\n' "$KEY" | sudo tee -a .env > /dev/null
+            fi
+            printf '%s\n' "$KEY" > /opt/pmo/mcp_api_key.txt
+            echo "MCP key generated and saved to /opt/pmo/mcp_api_key.txt"
+          else
+            echo "MCP key already configured in .env"
           fi
 
       # A real certificate was purchased for *.gigaenterprise.ai, so no ACME
@@ -64,6 +88,7 @@ jobs:
           docker compose up -d --build backend
           docker compose up -d postgres
           docker compose up -d nginx
+          docker compose --profile mcp up -d --build mcp
           echo "Core services deployed $(date)"
 
       - name: Write HTTPS nginx config and reload
@@ -93,6 +118,28 @@ jobs:
                   proxy_set_header X-Forwarded-Proto \$scheme;
               }
 
+              # MCP-коннектор для Коворка (Streamable HTTP). Адрес через
+              # переменную: nginx стартует, даже если контейнер mcp не запущен.
+              location = /mcp {
+                  resolver 127.0.0.11 valid=30s ipv6=off;
+                  set \$mcp_upstream http://mcp:8000;
+                  proxy_pass \$mcp_upstream;
+                  proxy_http_version 1.1;
+                  proxy_set_header Connection "";
+                  proxy_set_header Host \$host;
+                  proxy_set_header X-Real-IP \$remote_addr;
+                  proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto \$scheme;
+                  proxy_buffering off;
+                  proxy_read_timeout 300s;
+                  client_max_body_size 2m;
+              }
+              location = /mcp-health {
+                  resolver 127.0.0.11 valid=30s ipv6=off;
+                  set \$mcp_health http://mcp:8000/health;
+                  proxy_pass \$mcp_health;
+              }
+
               root /usr/share/nginx/html;
               index index.html;
               location / {
@@ -107,3 +154,10 @@ jobs:
         run: |
           sleep 2
           curl -fsSk -o /dev/null -w "https://${DOMAIN}/ (local) -> %{http_code}\n" "https://localhost/" -H "Host: ${DOMAIN}" || true
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsSk "https://localhost/mcp-health" -H "Host: ${DOMAIN}"; then echo; break; fi
+            sleep 3
+          done
+          # Без ключа /mcp должен отвечать 401
+          curl -sSk -o /dev/null -w "POST /mcp without key -> %{http_code}\n" -X POST "https://localhost/mcp" -H "Host: ${DOMAIN}" -H "Content-Type: application/json" -d '{}' || true
+          docker compose -f /opt/pmo/deploy/docker-compose.yml --profile mcp logs --tail 20 mcp || true

@@ -31,6 +31,22 @@ async function ensureSchema() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `);
+  // Версия каждого ключа — для защиты от затирания чужих правок (см. PUT).
+  await pool.query("ALTER TABLE kv_store ADD COLUMN IF NOT EXISTS version BIGINT NOT NULL DEFAULT 1");
+}
+
+// При старте postgres может ещё не принимать соединения (контейнеры
+// поднимаются одновременно) — ждём, а не падаем.
+async function ensureSchemaWithRetry(attempts = 30) {
+  for (let i = 1; ; i++) {
+    try {
+      return await ensureSchema();
+    } catch (err) {
+      if (i >= attempts) throw err;
+      console.error(`Database not ready (attempt ${i}/${attempts}): ${err.code || err.message}`);
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
 }
 
 function signToken(user) {
@@ -188,22 +204,96 @@ app.delete("/api/admin/users/:id", requireAdmin, async (req, res) => {
 // ---- Общее хранилище данных таблиц (реестры, проекты, требования и т.д.) ----
 // Доступно только активным пользователям — гейт на фронтенде дублируется
 // здесь, чтобы данные нельзя было прочитать/изменить в обход интерфейса.
-app.get("/api/data/:key", requireActiveUser, async (req, res) => {
-  const { rows } = await pool.query("SELECT value FROM kv_store WHERE key = $1", [req.params.key]);
-  if (!rows.length) return res.status(404).json({ error: "not_found" });
-  res.json({ value: rows[0].value });
+app.get("/api/data-versions", requireActiveUser, async (req, res) => {
+  const { rows } = await pool.query("SELECT key, version FROM kv_store");
+  const versions = {};
+  rows.forEach((r) => { versions[r.key] = Number(r.version); });
+  res.json({ versions });
 });
 
+app.get("/api/data/:key", requireActiveUser, async (req, res) => {
+  const { rows } = await pool.query("SELECT value, version FROM kv_store WHERE key = $1", [req.params.key]);
+  if (!rows.length) return res.status(404).json({ error: "not_found" });
+  res.json({ value: rows[0].value, version: Number(rows[0].version) });
+});
+
+// Оптимистичная блокировка: клиент присылает baseVersion — версию, которую он
+// видел. Если с тех пор ключ кто-то изменил (другой пользователь или Коворк
+// через MCP), запись отклоняется с 409 и актуальным значением, клиент сливает
+// изменения и повторяет. baseVersion = 0 — «ключа ещё нет». Без baseVersion
+// (страница, открытая до обновления) пишем как раньше.
 app.put("/api/data/:key", requireActiveUser, async (req, res) => {
-  if (!Object.prototype.hasOwnProperty.call(req.body || {}, "value")) {
+  const body = req.body || {};
+  if (!Object.prototype.hasOwnProperty.call(body, "value")) {
     return res.status(400).json({ error: "missing_value" });
   }
-  await pool.query(
-    `INSERT INTO kv_store (key, value, updated_at) VALUES ($1, $2, now())
-     ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = now()`,
-    [req.params.key, JSON.stringify(req.body.value)]
-  );
-  res.json({ ok: true });
+  const key = req.params.key;
+  const valueJson = JSON.stringify(body.value);
+  const baseVersion = body.baseVersion;
+
+  if (baseVersion === undefined || baseVersion === null) {
+    const { rows } = await pool.query(
+      `INSERT INTO kv_store (key, value, updated_at, version) VALUES ($1, $2, now(), 1)
+       ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = now(), version = kv_store.version + 1
+       RETURNING version`,
+      [key, valueJson]
+    );
+    return res.json({ ok: true, version: Number(rows[0].version) });
+  }
+  if (!Number.isInteger(baseVersion) || baseVersion < 0) {
+    return res.status(400).json({ error: "invalid_base_version" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const cur = await client.query("SELECT value, version FROM kv_store WHERE key = $1 FOR UPDATE", [key]);
+    const exists = cur.rows.length > 0;
+    const currentVersion = exists ? Number(cur.rows[0].version) : 0;
+    if (currentVersion !== baseVersion) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({
+        error: "conflict",
+        exists,
+        version: currentVersion,
+        value: exists ? cur.rows[0].value : null
+      });
+    }
+    let newVersion;
+    if (exists) {
+      const upd = await client.query(
+        "UPDATE kv_store SET value = $2, updated_at = now(), version = version + 1 WHERE key = $1 RETURNING version",
+        [key, valueJson]
+      );
+      newVersion = Number(upd.rows[0].version);
+    } else {
+      // Одновременная вставка того же ключа: вторая упадёт на PK → тоже 409.
+      const ins = await client.query(
+        `INSERT INTO kv_store (key, value, updated_at, version) VALUES ($1, $2, now(), 1)
+         ON CONFLICT (key) DO NOTHING RETURNING version`,
+        [key, valueJson]
+      );
+      if (!ins.rows.length) {
+        await client.query("ROLLBACK");
+        const now = await pool.query("SELECT value, version FROM kv_store WHERE key = $1", [key]);
+        return res.status(409).json({
+          error: "conflict",
+          exists: now.rows.length > 0,
+          version: now.rows.length ? Number(now.rows[0].version) : 0,
+          value: now.rows.length ? now.rows[0].value : null
+        });
+      }
+      newVersion = 1;
+    }
+    await client.query("COMMIT");
+    res.json({ ok: true, version: newVersion });
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    console.error("PUT /api/data failed", err);
+    res.status(500).json({ error: "internal" });
+  } finally {
+    client.release();
+  }
 });
 
 app.delete("/api/data/:key", requireActiveUser, async (req, res) => {
@@ -212,7 +302,7 @@ app.delete("/api/data/:key", requireActiveUser, async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-ensureSchema()
+ensureSchemaWithRetry()
   .then(() => app.listen(PORT, () => console.log(`Backend listening on :${PORT}`)))
   .catch((err) => {
     console.error("Failed to initialize database schema", err);
