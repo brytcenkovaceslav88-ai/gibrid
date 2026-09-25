@@ -1,0 +1,19 @@
+name: Check a kv_store value (pmo.gigaenterprise.ai)
+
+on:
+  push:
+    branches:
+      - claude/deploy-project-domain-uji310
+    paths:
+      - ".github/workflows/check-kv-value.yml"
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: [self-hosted, pmo-public]
+    steps:
+      - name: Print the raw value for projects-planningweeks
+        run: |
+          set -e
+          docker exec pmo_postgres psql -U pmo -d pmo -t -c \
+            "SELECT value FROM kv_store WHERE key = 'projects-planningweeks';"
