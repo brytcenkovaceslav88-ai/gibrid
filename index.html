@@ -1629,17 +1629,39 @@
   // flushes the currently-edited cell and warns the user while a save is
   // still in the air (fetches get aborted by the browser on navigation).
   var pendingSaveCount = 0;
+  // Per-key save queue: at most one request per key is ever in flight. Rapid
+  // edits (e.g. adding several rows, then updating statuses) each call
+  // persist() with a fresh full-array snapshot; without this queue those
+  // requests race, and an earlier (staler) one completing after a later one
+  // silently overwrites newer data with older data. Coalescing to "only the
+  // latest snapshot, sent strictly after the previous send finishes" makes
+  // that impossible — the final saved value is always the most recent edit.
+  var saveQueues = Object.create(null); // key -> { latest: string, inFlight: boolean }
   function persist(key, value){
     var json = JSON.stringify(value);
+    var q = saveQueues[key];
+    if(!q){ q = saveQueues[key] = { latest: null, inFlight: false }; }
+    q.latest = json;
+    if(!q.inFlight) runSaveLoop(key, q);
+  }
+  function runSaveLoop(key, q){
+    var json = q.latest;
+    q.inFlight = true;
     pendingSaveCount++;
-    if(hasWindowStorage){
-      window.storage.set(key, json, false).then(function(){ flashSaved(); }).catch(function(e){
-        console.error('window.storage failed, falling back', e);
-        return persistToApiOrLocal(key, json);
-      }).finally(function(){ pendingSaveCount--; });
-    } else {
-      persistToApiOrLocal(key, json).finally(function(){ pendingSaveCount--; });
-    }
+    var savePromise = hasWindowStorage
+      ? window.storage.set(key, json, false).then(function(){ flashSaved(); }).catch(function(e){
+          console.error('window.storage failed, falling back', e);
+          return persistToApiOrLocal(key, json);
+        })
+      : persistToApiOrLocal(key, json);
+    savePromise.finally(function(){
+      pendingSaveCount--;
+      if(q.latest !== json){
+        runSaveLoop(key, q); // newer edits arrived while this save was in flight
+      } else {
+        q.inFlight = false;
+      }
+    });
   }
   function persistToApiOrLocal(key, json){
     return apiSetValue(key, json).then(function(){ flashSaved(); }).catch(function(e){
