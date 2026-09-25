@@ -1,0 +1,25 @@
+name: Check backend logs (pmo.gigaenterprise.ai)
+
+on:
+  push:
+    branches:
+      - claude/deploy-project-domain-uji310
+    paths:
+      - ".github/workflows/check-backend-logs.yml"
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: [self-hosted, pmo-public]
+    steps:
+      - name: Dump recent backend logs and container status
+        run: |
+          set -e
+          echo "=== docker compose ps ==="
+          docker compose -f /opt/pmo/deploy/docker-compose.yml ps
+          echo ""
+          echo "=== backend logs (last 300 lines) ==="
+          docker compose -f /opt/pmo/deploy/docker-compose.yml logs --tail=300 backend
+          echo ""
+          echo "=== postgres kv_store rows (metadata only, no values) ==="
+          docker exec pmo_postgres psql -U pmo -d pmo -c "SELECT key, updated_at, length(value::text) AS value_len FROM kv_store ORDER BY updated_at DESC LIMIT 20;"
