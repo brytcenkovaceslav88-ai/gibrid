@@ -12,8 +12,8 @@ jobs:
   check:
     runs-on: [self-hosted, pmo-public]
     steps:
-      - name: Print the raw value for projects-planningweeks
+      - name: Print the raw value for projects-actiontasks
         run: |
           set -e
           docker exec pmo_postgres psql -U pmo -d pmo -t -c \
-            "SELECT value FROM kv_store WHERE key = 'projects-planningweeks';"
+            "SELECT value FROM kv_store WHERE key = 'projects-actiontasks';"
