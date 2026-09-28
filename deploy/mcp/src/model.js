@@ -357,6 +357,8 @@ export function formatTask(task, dateIso) {
   };
   if (task.description) out["описание"] = task.description;
   if (task.server) out["сервер"] = task.server;
+  if (task.assignee) out["исполнитель"] = task.assignee;
+  if (task.jiraLink) out["jira"] = task.jiraLink;
   if (task.timeValue) out["трудозатраты"] = `${task.timeValue} ${task.timeUnit === "hours" ? "ч" : "дн."}`;
   return out;
 }

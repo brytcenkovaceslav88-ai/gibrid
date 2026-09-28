@@ -532,6 +532,13 @@
   .pt-status-label{font-size:11px;color:var(--ink);text-align:center;}
   .pt-time-row{display:flex;gap:8px;}
   .pt-time-row select{flex-shrink:0;width:110px;}
+  .person-cell-link{color:var(--accent);font-weight:600;text-decoration:none;}
+  .person-cell-link:hover{text-decoration:underline;}
+  .person-cell-caret{margin-left:6px;color:var(--ink-soft);font-size:11px;cursor:pointer;}
+  .pt-link-row{display:flex;gap:8px;align-items:center;}
+  .pt-link-row input{flex:1;min-width:0;}
+  .pt-link-open{flex-shrink:0;font-size:12.5px;font-weight:600;color:var(--accent);text-decoration:none;white-space:nowrap;}
+  .pt-link-open:hover{text-decoration:underline;}
   .pt-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 22px;border-top:1px solid var(--line);}
   .pt-btn{font-family:inherit;font-size:13px;font-weight:600;border-radius:8px;padding:9px 16px;cursor:pointer;border:none;}
   .pt-btn-save{background:var(--accent);color:#fff;}
@@ -1034,6 +1041,7 @@
            было включить обратно, просто убрав tab-hidden и вернув active сюда. -->
       <button class="tab-btn tab-hidden" data-tab="registry" type="button" role="tab" aria-selected="false" tabindex="-1">Реестр миграций</button>
       <button class="tab-btn active" data-tab="projects" type="button" role="tab" aria-selected="true">Текущие проекты</button>
+      <button class="tab-btn" data-tab="delivery" type="button" role="tab" aria-selected="false">Реестр поставки ПАК</button>
       <button class="tab-btn" data-tab="architecture" type="button" role="tab" aria-selected="false">Архитектура</button>
       <button class="tab-btn" data-tab="requirements" type="button" role="tab" aria-selected="false">Требования</button>
     </div>
@@ -1095,6 +1103,32 @@
     </div>
 
     <p class="page-footer">Список проектов совпадает с реестром миграций, но здесь отслеживаются цели, сроки, контакты, задачи и ссылки на Confluence / сделку в CRM. Изменения в этой вкладке не влияют на реестр миграций и наоборот.</p>
+  </section>
+
+  <!-- ===================== VIEW: РЕЕСТР ПОСТАВКИ ПАК ===================== -->
+  <section class="view" id="view-delivery">
+    <div class="toolbar">
+      <span class="hint">🖱️ Один клик — редактировать · 📅 дата установки — календарь · имя — ссылка на Confluence · ⠿ — перетащить колонку/строку · 🔽 — фильтр</span>
+      <div class="search-wrap">
+        <span class="search-icon">🔎</span>
+        <input type="text" class="search-input" id="searchInput-delivery" placeholder="Поиск по таблице…">
+      </div>
+      <div class="toolbar-actions">
+        <button class="btn-add" id="addRowBtn-delivery">+ Добавить поставку</button>
+        <button class="btn-add" id="downloadExcelBtn-delivery">⬇ Скачать в Excel</button>
+        <button class="btn-add" id="addColBtn-delivery">+ Добавить колонку</button>
+        <button class="btn-ghost" id="resetBtn-delivery">Сбросить к исходным данным</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table id="registryTable-delivery">
+        <thead><tr id="headRow-delivery"></tr></thead>
+        <tbody id="tableBody-delivery"></tbody>
+      </table>
+    </div>
+
+    <p class="page-footer">Реестр поставленных и поставляемых серверов ПАК: сегмент, тип сервера, клиент, продукт, дата установки, серийный номер, сделка в CRM, менеджер и РП СДБ.</p>
   </section>
 
   <!-- ===================== VIEW: АРХИТЕКТУРА ===================== -->
@@ -1432,6 +1466,13 @@
     if(idx === -1) return 'x';
     return String(idx % 5);
   }
+  // Цвет чипа по позиции значения в списке (для справочников реестра поставки).
+  function optionIndexClassFn(options){
+    return function(v){
+      var idx = options.indexOf(v);
+      return idx === -1 ? 'x' : String(idx % 5);
+    };
+  }
   function priorityClass(v){
     var s = (v||'').trim().toLowerCase();
     if(s === 'высокий') return 'comp1';
@@ -1559,6 +1600,31 @@
   ];
   var REQUIREMENTS_TITLES_DEFAULT = { items: 'Требования к GigaCowork' };
   var REQUIREMENTS_ITEMS_DEFAULT = [{"num": "1", "section": "Общие проверки", "requirement": "Соответствие объекта тестирования Методическим рекомендациям", "criteria": "Объект тестирования/инфраструктура объекта тестирования: присутствует в Едином реестре российских программ для электронных вычислительных машин и баз данных или присутствует в Едином реестре программ для электронных вычислительных машин и баз данных государств – членов Евразийского экономического союза", "decisive": "Решающее", "compliance": "4", "comment": "GigaCowork - российская платформа, входит в реестр российского ПО. Полное соответствие."}, {"num": "2", "section": "Общие проверки", "requirement": "Наличие в Объекте тестирования функциональности для выявления ошибок в настройках и доработках Объекта тестирования", "criteria": "В составе Объекта тестирования имеются инструменты для администрирования, позволяющие диагностировать ошибки в настройках и доработках Объекта тестирования с целью их оперативного устранения", "decisive": "Решающее", "compliance": "4", "comment": "Платформа предоставляет инструменты мониторинга, логирования и диагностики для выявления ошибок."}, {"num": "3", "section": "Общие проверки", "requirement": "Возможность заключения сервисного договора об организации технической поддержки", "criteria": "В документации на Объект тестирования или в обращении производителя (представителя) имеется информация о наличии возможности заключения договора об организации технической поддержки со следующими показателями:\nЯзык общения: русский;\nВозможность выезда специалиста технической поддержки на объект;\nКанал обслуживания: электронная почта (или портал) и телефон;\nНаличие информации о планах производителя по обеспечению технической поддержки Объекта тестирования минимум до 2030 года", "decisive": "Решающее", "compliance": "4", "comment": "GigaCowork предоставляет техническую поддержку на русском языке через email и телефон. Информация о поддержке до 2030 года доступна в документации."}, {"num": "4", "section": "Общие проверки", "requirement": "Наличие у компании-разработчика базы знаний с описанием проблем и способов их решения", "criteria": "У компании-разработчика имеется база знаний с описанием возможных проблем и способов их решения, а также возможность ее передачи / подключения к ней представителей работников эксплуатирующей организации", "decisive": "Не решающее", "compliance": "3", "comment": "База знаний с описанием проблем и решений доступна пользователям платформы через документацию и портал поддержки."}, {"num": "5", "section": "Общие проверки", "requirement": "Наличие у производителя ПО положительного опыта внедрения Объекта тестирования", "criteria": "Объект тестирования успешно применялся или применяется как минимум в одной из организаций Группы Газпром или производитель представил информацию как минимум о трех успешных проектах внедрения", "decisive": "Не решающее", "compliance": "4", "comment": "GigaCowork успешно внедрён в организациях Группы Сбер и других крупных компаниях. Есть подтверждённые кейсы внедрения."}, {"num": "6", "section": "Общие проверки", "requirement": "Встроенный Model Serving Framework (MSF)", "criteria": "Проверить документацию платформы. Просмотреть на наличие упоминания MSF: наличие endpoint для predict, load_model. Подтверждено наличие встроенного высокопроизводительного фреймворка для инференса моделей.", "decisive": "Решающее", "compliance": "4", "comment": "GigaCowork имеет встроенный Model Serving Framework с endpoint для predict и load_model, поддерживает высокопроизводительный инференс."}, {"num": "7", "section": "Мономодальный ассистент", "requirement": "Поддержка интеграции и контролируемого распределения сторонних моделей и БД по различным серверным ресурсам", "criteria": "Действие: 1. Интегрируйте модели распознавания речи, синтеза речи, большой языковой модели, используя инструменты Платформы и распределите их по серверам.\n2. Интегрируйте БД, используйте набор данных «Погода (температуры) в Регионах России за 2023-2025 год».\n3. Проверьте логи выполнения интеграции.\n\nОжидаемый результат: Интеграция всех моделей и БД прошла без ошибок. Платформа предоставляет возможность привязки конкретной модели ИИ к конкретному типу сервера в соответствии с необходимым объемом ресурсов. Модели доступны для использования на Платформе.", "decisive": "", "compliance": "4", "comment": "GigaCowork поддерживает интеграцию сторонних моделей и БД с распределением по серверным ресурсам через графический интерфейс."}, {"num": "8", "section": "Мономодальный ассистент", "requirement": "Поддержка интеграции новых классов моделей", "criteria": "Действие: Убедитесь в возможности подключать новые модели ИИ, не относящиеся к предустановленным классам моделей на примере физико-информированных моделей.\nОткройте панель инструментов, позволяющую добавлять новые модели ИИ;\nДобавьте физико-информированную модель к списку моделей, доступных на Платформе;\nПроверьте логи выполнения интеграции.\n\nОжидаемый результат: Интеграция модели нового класса прошла без ошибок. Платформа предоставляет возможность привязки конкретной модели ИИ к конкретному типу сервера в соответствии с необходимым объемом ресурсов. Модель доступна для использования на Платформе.", "decisive": "", "compliance": "3", "comment": "Платформа позволяет подключать новые модели ИИ через API и коннекторы. Поддержка физико-информированных моделей зависит от конкретной реализации."}, {"num": "9", "section": "Мономодальный ассистент", "requirement": "Обеспечение возможности создания ассистента с использованием графического интерфейса", "criteria": "Действие: 1. Создайте ассистента согласно схеме 1, используя инструменты Платформы.\n2. В чат-боте задайте вопросы:\nКакая температура была во Владимире 18 апреля?\nКакая температура была во Владимире 32 февраля?\n3. Сохраните рабочую область /сохраните шаблон созданного ассистента.\n\nОжидаемый результат: В рабочей области Платформы достаточно инструментов для создания ассистентов. Композиция и логика элементов рабочей области соответствуют требованиям эргономики интерфейса и поддерживают интуитивно однозначное взаимодействие с пользователем.\nОтвет Ассистента соответствует информации базы данных.", "decisive": "", "compliance": "4", "comment": "GigaCowork предоставляет полноценный графический интерфейс для создания ассистентов без написания кода."}, {"num": "10", "section": "Мономодальный ассистент", "requirement": "Возможность программирования логики ассистента на примере БЯМ при помощи графического интерфейса", "criteria": "Действие: Задайте промпт для генерации ответа:\n«Ты полезный ассистент. Правила:\nИспользуй русский язык;\nОтвечай кратко (максимум 3 предложения);\nЕсли недостаточно данных для точного ответа – скажи: «Для точного ответа недостаточно данных».\nВ чат-боте задайте вопрос: «Как отличается потребление газа зимой и летом в России и Европе?»\n\nОжидаемый результат: Конструктор агентов включает интерфейс редактирования промптов. Ассистент корректно ответил на вопрос согласно заданной инструкции.", "decisive": "", "compliance": "4", "comment": "Конструктор агентов включает редактирование промптов, настройку логики через графический интерфейс."}, {"num": "11", "section": "Мономодальный ассистент", "requirement": "Поддержка гибридного режима разработки", "criteria": "Действие: Создайте ассистента способного производить простейшие арифметические операции. Используйте язык программирования Python. Напишите скрипт, позволяющий перемножить два числа: 1234 и 5678.\nПроверьте результаты работы созданного ассистента.\n\nОжидаемый результат: Ассистент создан путем написания программного кода. Ассистент корректно ответил на вопросы.", "decisive": "", "compliance": "4", "comment": "Поддержка гибридного режима: можно создавать ассистентов как через no-code интерфейс, так и через Python-код."}, {"num": "12", "section": "Мономодальный ассистент", "requirement": "Контроль версий", "criteria": "Действие: Убедитесь в возможности создания версий ассистентов, развернутых на Платформе.\n1. В редакторе ассистента найдите раздел, позволяющий просмотреть историю версий;\n2. Измените существующего ассистента, позволяющего обращаться к языковой модели, путем редактирования промпта;\n3. Сохраните новую версию ассистента;\n4. Проверьте список версий\n\nОжидаемый результат: Платформа позволяет осуществлять контроль версий разработанных ассистентов.", "decisive": "", "compliance": "4", "comment": "GigaCowork реализует полноценный контроль версий ассистентов с историей изменений и возможностью отката."}, {"num": "13", "section": "Мономодальный ассистент", "requirement": "A/B-тестирование ассистентов", "criteria": "Действие: 1. В редакторе ассистента найдите раздел, позволяющий проведение A/B тестов;\n2. Запустите новый A/B тест;\n3. Сравните версии ассистентов, созданных в п/п А6\n\nОжидаемый результат: Платформа позволяет проводить A/B тестирование версий разработанных ассистентов", "decisive": "", "compliance": "4", "comment": "Платформа поддерживает A/B-тестирование версий ассистентов для сравнения их эффективности."}, {"num": "14", "section": "Мономодальный ассистент", "requirement": "Поддержка режима параллельной работы ассиcтентов, обрабатывающих запросы с использованием одной и той же модели", "criteria": "Действие: Создайте двух ассистентов (Ассистент 1, Ассистент 2) транскрибации аудиозаписей, использующие единую модель «речь в текст»;\nИспользуйте тестовые аудиозаписи: запись А (15 секунд), запись Б (60 секунд).\nЗапустите обработку файлов одновременно на обоих ассистентах (запись А на Ассистенте 1, запись Б на Ассистенте 2).\n\nОжидаемый результат: Результаты работы ассистентов корректны:\nРезультатом работы Ассистента 1 является тестовая расшифровка записи А;\nРезультатом работы Ассистента 2 является тестовая расшифровка записи Б; \nВ логах отсутствуют ошибки и свидетельства о взаимных блокировках.", "decisive": "", "compliance": "4", "comment": "GigaCowork поддерживает параллельную работу множественных ассистентов с общей моделью без взаимных блокировок."}, {"num": "15", "section": "Мультимодальный ассистент", "requirement": "Поддержка создания мультиагентных систем, обрабатывающих различные типы данных", "criteria": "Действие: Составьте цепочку нод согласно схеме 2, используя модели, развернутые в п.А1 Таблицы 7.\nСоздайте две дочерние области/разные подпроцессы для Агента 1 и Агента 2.\n\nОжидаемый результат: В рабочей области достаточно инструментов для создания мультиагентных систем. Платформа поддерживает создание нескольких подпроцессов.", "decisive": "", "compliance": "4", "comment": "GigaCowork поддерживает создание мультиагентных систем с обработкой различных типов данных через оркестратора."}, {"num": "16", "section": "Мультимодальный ассистент", "requirement": "Поддержка возможности параллельного выполнение задач агентами внутри мультиагентных систем, обрабатывающих различные типы данных", "criteria": "Действие: Задайте промпт для Агента 1: «Проведи транскрибацию аудиозаписи и выдели основные сущности».\nЗадайте промпт для Агента 2: «Выдели основные сущности на изображении».\nУдостоверьтесь, что режим параллельной работы включен.\nЗадайте логику для БЯМ: «Сравни результаты работы Агента 1 и Агента 2. Что общего? Аудиозапись описывает то, что на изображении?»\nСозданному ассистенту подайте на вход изображение и аудиозапись.\nПроанализируйте логи журнала событий, установите факт параллельного выполнения задач.\n\nОжидаемый результат: В аудиоформате получен ответ с корректным сопоставлением сущностей исходного аудифайла и изображения.", "decisive": "", "compliance": "4", "comment": "Платформа обеспечивает параллельное выполнение задач агентами внутри мультиагентных систем."}, {"num": "17", "section": "Мультимодальный ассистент", "requirement": "Поддержка MCP", "criteria": "Действие: Проверка осуществляется через интерфейс платформы.\n1. Откройте раздел платформы, отвечающий за интеграцию МСР-серверов;\n2. Создайте MCP-сервер, добавьте MCP-сервер в инструменты;\n3. В рабочей области на панели инструментов проверьте список на наличие добавленного инструмента\n\nОжидаемый результат: Подтверждена возможность реализации MCP-серверов.", "decisive": "", "compliance": "4", "comment": "GigaCowork поддерживает MCP (Model Context Protocol) для интеграции внешних инструментов и сервисов."}, {"num": "18", "section": "Дообучение", "requirement": "Инструменты дообучения моделей", "criteria": "Действие: 1. Откройте раздел Платформы, позволяющий производить адаптации развернутых языковых моделей;\n2. Найдите в пресетах методов опции дообучения модели и/или иные методы адаптации;\n3. Загрузите тестовый набор данных, предназначенный для адаптации моделей;\n4. Выберите базовую модель и запустите дообучение (задача MLM);\n5. Проследите за процессом адаптации модели в логах. Убедитесь в том, что точность модели по задаче MLM во время обучения и после обучения изменилась.\n\nОжидаемый результат: Платформа позволяет адаптировать языковые мо-дели, развернутые на Платформе.", "decisive": "", "compliance": "3", "comment": "GigaCowork предоставляет инструменты для адаптации/дообучения языковых моделей. Поддержка MLM-задач зависит от конкретной модели."}, {"num": "19", "section": "Несколько моделей", "requirement": "Поддержка возможности выполнения задач агентами внутри мультиагентных систем, обрабатывающих одинаковые типы данных", "criteria": "Действие: 1. Создайте Ассистента 1 согласно схеме 1, используя инструменты Платформы. Используйте представленную LLM.\n2. Создайте Ассистента 2 согласно схеме 1, используя инструменты Платформы. Языковая модель должна отличаться от той, которая используется в Ассистенте 1. Выберите либо LLM, либо SLM.\n3. Задайте промпт для Ассистента 1: «Какая температура была во Владимире 18 апреля?».\n4. Задайте Ассистента для Агента 2: «Какая температура была во Владимире 18 апреля?».\n5. Удостоверьтесь, что режим параллельной работы включен. Запустите работу Ассистентов 1 и 2.\n6. Проанализируйте логи журнала событий на предмет параллельного выполнения задач.\n\nОжидаемый результат: Подтверждена полнофункциональная поддержка выполнения задач агентами внутри мультиагентных систем, обрабатывающих одинаковые типы данных", "decisive": "", "compliance": "4", "comment": "GigaCowork поддерживает использование нескольких моделей одного класса (например, несколько LLM) параллельно."}, {"num": "20", "section": "Модели ИИ — Текстовые", "requirement": "LLM — Large Language Model", "criteria": "большая языковая модель", "decisive": "Решающее", "compliance": "4", "comment": "GigaCowork поддерживает интеграцию LLM (включая GigaChat, YandexGPT, open-source модели)."}, {"num": "21", "section": "Модели ИИ — Текстовые", "requirement": "SLM — Small Language Model", "criteria": "оптимизированные малые лёгкие модели", "decisive": "Не решающее", "compliance": "3", "comment": "Поддержка SLM зависит от конкретной реализации. Платформа позволяет развернуть малые модели."}, {"num": "22", "section": "Модели ИИ — Текстовые", "requirement": "Embedding Model", "criteria": "модели векторных представлений текста", "decisive": "Решающее", "compliance": "4", "comment": "GigaCowork поддерживает Embedding-модели для векторных представлений текста."}, {"num": "23", "section": "Модели ИИ — Текстовые", "requirement": "Reranker", "criteria": "модели ранжирования текстовых результатов", "decisive": "Не решающее", "compliance": "3", "comment": "Reranker-модели могут быть интегрированы через кастомные коннекторы."}, {"num": "24", "section": "Модели ИИ — Текстовые", "requirement": "Classification Model", "criteria": "классификация текста", "decisive": "Не решающее", "compliance": "3", "comment": "Classification-модели поддерживаются через интеграцию сторонних решений."}, {"num": "25", "section": "Модели ИИ — Визуальные", "requirement": "CNN — Convolutional Neural Network", "criteria": "базовая архитектура для обработки изображений", "decisive": "Не решающее", "compliance": "2", "comment": "CNN-модели могут быть интегрированы, но требуют кастомной настройки."}, {"num": "26", "section": "Модели ИИ — Визуальные", "requirement": "ViT — Vision Transformer", "criteria": "модели с архитектурой трансформеров для обработки изображений", "decisive": "Не решающее", "compliance": "2", "comment": "ViT-модели поддерживаются через интеграцию."}, {"num": "27", "section": "Модели ИИ — Визуальные", "requirement": "Object Detection Model", "criteria": "детекция объектов (YOLO, Faster R-CNN и др.)", "decisive": "Не решающее", "compliance": "2", "comment": "Object Detection модели (YOLO и др.) требуют кастомной интеграции."}, {"num": "28", "section": "Модели ИИ — Визуальные", "requirement": "Image Classification Model", "criteria": "классификация изображений", "decisive": "Не решающее", "compliance": "2", "comment": "Image Classification модели поддерживаются через интеграцию."}, {"num": "29", "section": "Модели ИИ — Визуальные", "requirement": "Face Recognition Model", "criteria": "распознавание лиц", "decisive": "Не решающее", "compliance": "2", "comment": "Face Recognition модели требуют кастомной интеграции."}, {"num": "30", "section": "Модели ИИ — Визуальные", "requirement": "OCR Model", "criteria": "распознавание текста в изображениях (Tesseract, PaddleOCR и др.", "decisive": "Решающее", "compliance": "3", "comment": "OCR-модели поддерживаются (интеграция с Tesseract, PaddleOCR и др.)."}, {"num": "31", "section": "Модели ИИ — Визуальные", "requirement": "Super-Resolution Model", "criteria": "повышение разрешения изображений", "decisive": "Не решающее", "compliance": "2", "comment": "Super-Resolution модели требуют кастомной интеграции."}, {"num": "32", "section": "Модели ИИ — Аудио", "requirement": "ASR — Automatic Speech Recognition", "criteria": "автоматическое распознавание речи (Whisper, Wav2Vec2 и др.)", "decisive": "Решающее", "compliance": "4", "comment": "GigaCowork поддерживает ASR-модели (распознавание речи, включая Whisper)."}, {"num": "33", "section": "Модели ИИ — Аудио", "requirement": "TTS", "criteria": "Text-to-Speech, перевод текста в звук (Tacotron, VITS, Bark и др.)", "decisive": "Решающее", "compliance": "4", "comment": "GigaCowork поддерживает TTS-модели (синтез речи)."}, {"num": "34", "section": "Модели ИИ — Аудио", "requirement": "Voice Conversion Model", "criteria": "преобразование голоса", "decisive": "Не решающее", "compliance": "2", "comment": "Voice Conversion модели требуют кастомной интеграции."}, {"num": "35", "section": "Модели ИИ — Аудио", "requirement": "Audio Classification Model", "criteria": "классификация звуков (музыка, шумы и др.)", "decisive": "Не решающее", "compliance": "2", "comment": "Audio Classification модели требуют кастомной интеграции."}, {"num": "36", "section": "Модели ИИ — Аудио", "requirement": "Speaker Recognition Model", "criteria": "идентификация диктора", "decisive": "Не решающее", "compliance": "2", "comment": "Speaker Recognition модели требуют кастомной интеграции."}, {"num": "37", "section": "Модели ИИ — Аудио", "requirement": "Audio Enhancement Model", "criteria": "шумоподавление", "decisive": "Не решающее", "compliance": "2", "comment": "Audio Enhancement модели требуют кастомной интеграции."}, {"num": "38", "section": "Модели ИИ — Видео", "requirement": "Video Classification Model", "criteria": "классификация видео", "decisive": "Не решающее", "compliance": "1", "comment": "Video Classification модели - ограниченная поддержка, требуется кастомная разработка."}, {"num": "39", "section": "Модели ИИ — Видео", "requirement": "Action Recognition Model", "criteria": "распознавание действий", "decisive": "Не решающее", "compliance": "1", "comment": "Action Recognition модели - ограниченная поддержка."}, {"num": "40", "section": "Модели ИИ — Видео", "requirement": "Video Object Tracking", "criteria": "отслеживание объектов", "decisive": "Не решающее", "compliance": "1", "comment": "Video Object Tracking модели - ограниченная поддержка."}, {"num": "41", "section": "Модели ИИ — Видео", "requirement": "Video Generation Model", "criteria": "генерация видео (Sora, Runway и др.)", "decisive": "Не решающее", "compliance": "1", "comment": "Video Generation модели - ограниченная поддержка."}, {"num": "42", "section": "Модели ИИ — Видео", "requirement": "Video Captioning Model", "criteria": "описание видео текстом", "decisive": "Не решающее", "compliance": "1", "comment": "Video Captioning модели - ограниченная поддержка."}, {"num": "43", "section": "Модели ИИ — Мультимодальные", "requirement": "VLM — Visual Language Model", "criteria": "Визуальные языковые модели, позволяющие обрабатывать как графическую, так и текстовую информацию", "decisive": "Решающее", "compliance": "4", "comment": "GigaCowork поддерживает VLM (Vision Language Models) для обработки изображений и текста."}, {"num": "44", "section": "Модели ИИ — Мультимодальные", "requirement": "CLIP — Contrastive Learning-Image Pre-training", "criteria": "Позволяют устанавливать взаимосвязи по типу текст-изображение", "decisive": "Не решающее", "compliance": "3", "comment": "CLIP-модели могут быть интегрированы через кастомные коннекторы."}, {"num": "45", "section": "Модели ИИ — Мультимодальные", "requirement": "Audio-Visual Model", "criteria": "Совместная обработка аудио и видео", "decisive": "Не решающее", "compliance": "2", "comment": "Audio-Visual модели требуют кастомной интеграции."}, {"num": "46", "section": "События запуска", "requirement": "По расписанию", "criteria": "Заявлено в документации", "decisive": "", "compliance": "4", "comment": "GigaCowork поддерживает запуск цепочек по расписанию (cron-подобный функционал)."}, {"num": "47", "section": "События запуска", "requirement": "По обращению", "criteria": "Заявлено в документации", "decisive": "", "compliance": "4", "comment": "GigaCowork поддерживает запуск цепочек по обращению (event-driven)."}, {"num": "48", "section": "Операнды логики", "requirement": "If/Else", "criteria": "Заявлено в документации", "decisive": "", "compliance": "4", "comment": "GigaCowork поддерживает условную логику If/Else в конструкторе агентов."}, {"num": "49", "section": "Операнды логики", "requirement": "Switch", "criteria": "Заявлено в документации", "decisive": "", "compliance": "4", "comment": "GigaCowork поддерживает Switch-конструкции для множественных условий."}, {"num": "50", "section": "Операнды логики", "requirement": "While", "criteria": "Заявлено в документации", "decisive": "", "compliance": "3", "comment": "While-циклы поддерживаются с ограничениями (требуют настройки таймаутов)."}, {"num": "51", "section": "Операнды логики", "requirement": "Parallel", "criteria": "Заявлено в документации", "decisive": "", "compliance": "4", "comment": "GigaCowork поддерживает параллельное выполнение (Parallel) задач."}, {"num": "52", "section": "Операнды логики", "requirement": "Wait", "criteria": "Заявлено в документации", "decisive": "", "compliance": "4", "comment": "GigaCowork поддерживает Wait-операции для синхронизации."}, {"num": "53", "section": "Защита информации", "requirement": "Локализация и суверенность данных", "criteria": "Платформа должна обеспечивать маршрутизации запросов ИИ-агентов исключительно на территории РФ, с возможностью принудительного блокирования несанкционированной трансграничной передачи.", "decisive": "Не решающее", "compliance": "4", "comment": "GigaCowork обеспечивает локализацию данных на территории РФ, соответствует требованиям 152-ФЗ."}, {"num": "54", "section": "Защита информации", "requirement": "Маркировка синтетического контента", "criteria": "Наличие встроенного механизма автоматического внедрения машиночитаемых и визуально воспринимаемых меток (водяных знаков) во все аудио-, видео- и текстовые материалы, генерируемые или обрабатываемые ИИ-агентами.", "decisive": "Не решающее", "compliance": "2", "comment": "Маркировка синтетического контента - функциональность в разработке или требует кастомной реализации."}, {"num": "55", "section": "Защита информации", "requirement": "Мониторинг инцидентов и аварийное реагирование", "criteria": "Наличие встроенной подсистемы журналирования событий, выявления аномалий в поведении агентов и автоматической приостановки эксплуатации при обнаружении угрозы причинения вреда или нарушения безопасности.", "decisive": "Не решающее", "compliance": "4", "comment": "GigaCowork имеет подсистему мониторинга, журналирования событий и выявления аномалий."}, {"num": "56", "section": "Защита информации", "requirement": "Управление доступом и аудит", "criteria": "Реализация и ведение защищенного от модификации журнала всех запросов, изменений параметров, цепочек принятия решений и результатов генерации.", "decisive": "Не решающее", "compliance": "4", "comment": "GigaCowork реализует управление доступом (RBAC) и аудит всех действий пользователей."}];
+  // ---- Реестр поставки ПАК (данные из выгрузки «Реестр поставки ПАК.xlsx») ----
+  var DELIVERY_COLUMNS_DEFAULT = [
+    {id:'num', label:'№'},
+    {id:'segment', label:'Сегмент'},
+    {id:'serverType', label:'Тип сервера'},
+    {id:'client', label:'Клиент'},
+    {id:'dProduct', label:'Продукт'},
+    {id:'installDate', label:'Дата установки'},
+    {id:'productVersion', label:'Версия продукта'},
+    {id:'serial', label:'Серийный номер'},
+    {id:'crmLink', label:'CRM'},
+    {id:'sdbManager', label:'Менеджер СДБ'},
+    {id:'sdbRp', label:'РП СДБ'},
+    {id:'saleType', label:'Продажа/тест'},
+    {id:'comment', label:'Комментарий'}
+  ];
+  var DELIVERY_TITLES_DEFAULT = { items: 'Реестр поставки ПАК' };
+  var DELIVERY_SEGMENT_OPTIONS = ["CIB", "СКМ", "КСБ", "ДЗО", "ДКК", "ТЕСТ"];
+  var DELIVERY_SERVER_TYPE_OPTIONS = ['8 GPU', '4 GPU', '2 GPU'];
+  var DELIVERY_PRODUCT_OPTIONS = ['GE', 'Cowork'];
+  var DELIVERY_SALE_TYPE_OPTIONS = ['Продажа', 'Тестирование', 'Тест + Продажа'];
+  // Имя в ячейке — ссылка на страницу человека в Confluence.
+  var DELIVERY_MANAGER_LIST = [{"name": "Кира Есаулова", "url": "https://sberworks.ru/wiki/display/~esaulova"}, {"name": "Виктор Кошевой", "url": "https://sberworks.ru/wiki/display/~v.koshevoy"}, {"name": "Наталья Кивилева", "url": "https://sberworks.ru/wiki/display/~n.kivileva"}, {"name": "Евгений Чекоданов", "url": "https://sberworks.ru/wiki/display/~e.chekodanov"}, {"name": "Дмитрий Лейтнер", "url": "https://sberworks.ru/wiki/display/~leytner"}, {"name": "Анастасия Рубан", "url": "https://sberworks.ru/wiki/display/~a.ruban1"}, {"name": "Ксенафонтова Дарья", "url": null}, {"name": "Татьяна Басс", "url": "https://sberworks.ru/wiki/display/~t.bass"}, {"name": "Лусвард Хачатрян", "url": "https://sberworks.ru/wiki/display/~l.khachatryan"}, {"name": "Камал Новрузов", "url": "https://sberworks.ru/wiki/display/~k.novruzov"}, {"name": "Александр Суворов", "url": "https://sberworks.ru/wiki/display/~a.suvorov"}, {"name": "Константин Арсенов", "url": "https://sberworks.ru/wiki/display/~k.arsenov"}, {"name": "Колесников Игорь", "url": null}, {"name": "Петр Костюков", "url": "https://sberworks.ru/wiki/display/~p.kostyukov"}, {"name": "Зубкова Ольга", "url": null}, {"name": "Жабин Андрей", "url": null}, {"name": "Беглов Роман", "url": null}];
+  var DELIVERY_RP_LIST = [{"name": "Александра Чувикина", "url": "https://sberworks.ru/wiki/display/~aschuvikina"}, {"name": "Георгий Майоров", "url": "https://sberworks.ru/wiki/display/~galmayorov"}, {"name": "Николай Романенко", "url": "https://sberworks.ru/wiki/display/~n.romanenko"}, {"name": "Григорий Михлин", "url": "https://sberworks.ru/wiki/display/~g.mikhlin"}, {"name": "Виктор Кошевой", "url": "https://sberworks.ru/wiki/display/~v.koshevoy"}, {"name": "Олег Яшин", "url": "https://sberworks.ru/wiki/display/~o.yashin"}, {"name": "Илья Белоусов", "url": "https://sberworks.ru/wiki/display/~i.belousov"}, {"name": "Артём Казаков", "url": "https://sberworks.ru/wiki/display/~a.kazakov"}, {"name": "Богдан Чугай", "url": "https://sberworks.ru/wiki/display/~b.chugay"}, {"name": "Анил Панда", "url": "https://sberworks.ru/wiki/display/~a.panda"}, {"name": "Александр Черных", "url": "https://sberworks.ru/wiki/display/~a.chernykh"}];
+  var DELIVERY_ITEMS_DEFAULT = [{"num": "1", "segment": "CIB", "serverType": "", "client": "АО \"ПОЧТА РОССИИ\"", "dProduct": "", "installDate": "", "productVersion": "", "serial": "A514359X5B15115", "crmLink": "https://app.sbercrm.com/#/e/Deal/94f62640-03c5-4bae-8acd-c46a7d69c82d", "sdbManager": "Кира Есаулова", "sdbRp": "Александра Чувикина", "saleType": "Тестирование", "comment": ""}, {"num": "2", "segment": "СКМ", "serverType": "8 GPU", "client": "Апатит", "dProduct": "", "installDate": "", "productVersion": "", "serial": "A514359X5914217", "crmLink": "", "sdbManager": "Виктор Кошевой", "sdbRp": "", "saleType": "Продажа", "comment": ""}, {"num": "3", "segment": "КСБ", "serverType": "8 GPU", "client": "ООО \"УЛЬТРАМАР\"", "dProduct": "", "installDate": "", "productVersion": "", "serial": "A514359X5B16121", "crmLink": "https://app.sbercrm.com/#/e/Deal/40083a3c-9198-4351-8665-1d73972c8a91", "sdbManager": "Наталья Кивилева", "sdbRp": "Георгий Майоров", "saleType": "Продажа", "comment": ""}, {"num": "4", "segment": "КСБ", "serverType": "8 GPU", "client": "ООО \"Курорт Манжерок\"", "dProduct": "", "installDate": "", "productVersion": "", "serial": "A514359X5B16117", "crmLink": "https://app.sbercrm.com/#/e/Deal/3d7d8d5b-b9ff-4627-9b12-df259db27b87", "sdbManager": "Евгений Чекоданов", "sdbRp": "Николай Романенко", "saleType": "Продажа", "comment": ""}, {"num": "5", "segment": "ДЗО", "serverType": "8 GPU", "client": "АО \"РУБЛЕВО-АРХАНГЕЛЬСКОЕ\"-ГРУППА СБЕРБАНК-СберСити", "dProduct": "", "installDate": "", "productVersion": "", "serial": "A514359X5B16123", "crmLink": "https://app.sbercrm.com/#/e/Deal/264f7144-47c4-4f35-84e0-b4c68970f138", "sdbManager": "Евгений Чекоданов", "sdbRp": "Григорий Михлин", "saleType": "Продажа", "comment": ""}, {"num": "6", "segment": "КСБ", "serverType": "8 GPU", "client": "ООО \"СЗ \"ГРАНЕЛЬ СФЕРА\"", "dProduct": "", "installDate": "", "productVersion": "", "serial": "A514359X5C15118", "crmLink": "https://app.sbercrm.com/#/e/Deal/7a4a691e-d490-41c7-9742-5e16506d27c2", "sdbManager": "Дмитрий Лейтнер", "sdbRp": "Николай Романенко", "saleType": "Продажа", "comment": ""}, {"num": "7", "segment": "ДКК", "serverType": "8 GPU", "client": "СофтЛайн", "dProduct": "", "installDate": "", "productVersion": "", "serial": "A514359X5B16114", "crmLink": "https://app.sbercrm.com/#/e/Deal/9b7141d7-cbac-43e5-83ea-c4a2ced88911", "sdbManager": "Анастасия Рубан", "sdbRp": "Виктор Кошевой", "saleType": "Продажа", "comment": ""}, {"num": "8", "segment": "ДКК", "serverType": "8 GPU", "client": "ООО СЗ \"СК НВМ\"", "dProduct": "", "installDate": "", "productVersion": "", "serial": "A514359X5B16118", "crmLink": "https://app.sbercrm.com/#/e/Deal/59675494-cf00-4697-80f9-0462e54e37a5", "sdbManager": "Ксенафонтова Дарья", "sdbRp": "Олег Яшин", "saleType": "Продажа", "comment": ""}, {"num": "9", "segment": "ДКК", "serverType": "8 GPU", "client": "СТОЛОТО 1", "dProduct": "", "installDate": "", "productVersion": "", "serial": "A514359X5B16125", "crmLink": "https://app.sbercrm.com/#/e/Deal/8d25b220-98a3-461b-beb8-5e748f4bb229", "sdbManager": "Татьяна Басс", "sdbRp": "Илья Белоусов", "saleType": "Продажа", "comment": ""}, {"num": "10", "segment": "ДКК", "serverType": "8 GPU", "client": "ПАО \"ГК \"САМОЛЕТ\"", "dProduct": "", "installDate": "", "productVersion": "", "serial": "A514359X5B16115", "crmLink": "https://app.sbercrm.com/#/e/Deal/597da19e-dfa6-4601-81d1-9497de74f604", "sdbManager": "Лусвард Хачатрян", "sdbRp": "Николай Романенко", "saleType": "Продажа", "comment": ""}, {"num": "11", "segment": "КСБ", "serverType": "4 GPU", "client": "СК Союз", "dProduct": "", "installDate": "", "productVersion": "", "serial": "S405-T202550600001", "crmLink": "https://app.sbercrm.com/#/e/Deal/988e6d95-7728-488d-8c9e-88c5ca53ad8b", "sdbManager": "Камал Новрузов", "sdbRp": "Виктор Кошевой", "saleType": "Продажа", "comment": ""}, {"num": "12", "segment": "ДКК", "serverType": "4 GPU", "client": "ПАО НОВАТЭК Договор", "dProduct": "", "installDate": "", "productVersion": "", "serial": "S405-T202612100003", "crmLink": "https://app.sbercrm.com/#/e/Deal/67f5e61e-c8bc-4afd-a14b-f442ff7e6fe3", "sdbManager": "Кира Есаулова", "sdbRp": "Артём Казаков", "saleType": "Тестирование", "comment": ""}, {"num": "13", "segment": "ТЕСТ", "serverType": "4 GPU", "client": "РЖД - Договор", "dProduct": "", "installDate": "", "productVersion": "", "serial": "S405-T202532100013", "crmLink": "https://app.sbercrm.com/#/e/Deal/cdc4a7c4-39d4-4a93-bd73-6a2b9998fcd7", "sdbManager": "Александр Суворов", "sdbRp": "Артём Казаков", "saleType": "Тестирование", "comment": ""}, {"num": "14", "segment": "ДКК", "serverType": "4 GPU", "client": "МО", "dProduct": "", "installDate": "", "productVersion": "", "serial": "S405-T202550600038", "crmLink": "https://app.sbercrm.com/#/e/Deal/1ed9c75c-6fd1-49c0-b9d1-b263b8f35cc1", "sdbManager": "Константин Арсенов", "sdbRp": "Богдан Чугай", "saleType": "Тест + Продажа", "comment": ""}, {"num": "15", "segment": "ДКК", "serverType": "4 GPU", "client": "МО", "dProduct": "", "installDate": "", "productVersion": "", "serial": "S405-T202532100012", "crmLink": "https://app.sbercrm.com/#/e/Deal/1ed9c75c-6fd1-49c0-b9d1-b263b8f35cc1", "sdbManager": "Константин Арсенов", "sdbRp": "Богдан Чугай", "saleType": "Тест + Продажа", "comment": ""}, {"num": "16", "segment": "КСБ", "serverType": "4 GPU", "client": "ООО НПП БАСЭТ (ТЕСТ 1Г)", "dProduct": "", "installDate": "", "productVersion": "", "serial": "S405-T202532100011", "crmLink": "https://app.sbercrm.com/#/e/Deal/0d1d70ee-2f17-48c0-a830-fb6f3a288c9b", "sdbManager": "Колесников Игорь", "sdbRp": "", "saleType": "Продажа", "comment": ""}, {"num": "17", "segment": "ДКК", "serverType": "4 GPU", "client": "ООО \"Уральские Локомотивы\" (Синара) - Договор", "dProduct": "", "installDate": "", "productVersion": "", "serial": "S405-T202612100005", "crmLink": "https://app.sbercrm.com/#/e/Deal/a875ddc0-558c-444a-9d6a-251b50517526", "sdbManager": "Александр Суворов", "sdbRp": "Анил Панда", "saleType": "Тестирование", "comment": ""}, {"num": "18", "segment": "ДКК", "serverType": "8 GPU", "client": "Технодинамика - Договор", "dProduct": "", "installDate": "", "productVersion": "", "serial": "210619KUGGXGS2000008", "crmLink": "https://app.sbercrm.com/#/e/Deal/1ef7e266-7ee6-48d9-ae09-1511f7f7ba79", "sdbManager": "Константин Арсенов", "sdbRp": "", "saleType": "Продажа", "comment": ""}, {"num": "19", "segment": "ДКК", "serverType": "8 GPU", "client": "Гзапром - Договор", "dProduct": "", "installDate": "", "productVersion": "", "serial": "210619KUGGXGS2000017", "crmLink": "https://app.sbercrm.com/#/e/Deal/9cc5453b-5e23-4450-b0e1-5427cd7aa33b", "sdbManager": "Кира Есаулова", "sdbRp": "Артём Казаков", "saleType": "Продажа", "comment": ""}, {"num": "20", "segment": "ДКК", "serverType": "8 GPU", "client": "Гзапром", "dProduct": "", "installDate": "", "productVersion": "", "serial": "", "crmLink": "https://app.sbercrm.com/#/e/Deal/9cc5453b-5e23-4450-b0e1-5427cd7aa33b", "sdbManager": "Кира Есаулова", "sdbRp": "Артём Казаков", "saleType": "Продажа", "comment": ""}, {"num": "21", "segment": "ДКК", "serverType": "8 GPU", "client": "Гзапром", "dProduct": "", "installDate": "", "productVersion": "", "serial": "", "crmLink": "https://app.sbercrm.com/#/e/Deal/9cc5453b-5e23-4450-b0e1-5427cd7aa33b", "sdbManager": "Кира Есаулова", "sdbRp": "Артём Казаков", "saleType": "Продажа", "comment": ""}, {"num": "22", "segment": "СКМ", "serverType": "8 GPU", "client": "ОАК", "dProduct": "", "installDate": "", "productVersion": "", "serial": "", "crmLink": "https://app.sbercrm.com/#/e/Deal/d7858c71-fa39-473d-bc82-7871af181cfe", "sdbManager": "Константин Арсенов", "sdbRp": "Александра Чувикина", "saleType": "Продажа", "comment": ""}, {"num": "23", "segment": "СКМ", "serverType": "8 GPU", "client": "ОДК", "dProduct": "", "installDate": "", "productVersion": "", "serial": "", "crmLink": "https://app.sbercrm.com/#/e/Deal/6eec896b-b5a7-464d-a78f-8817678768c1", "sdbManager": "Константин Арсенов", "sdbRp": "Анил Панда", "saleType": "Продажа", "comment": ""}, {"num": "24", "segment": "ДКК", "serverType": "8 GPU", "client": "ВЭБ", "dProduct": "", "installDate": "", "productVersion": "", "serial": "", "crmLink": "https://app.sbercrm.com/#/e/Deal/77eb6be3-ec41-498c-a89a-db4340cda41c", "sdbManager": "Петр Костюков", "sdbRp": "Александр Черных", "saleType": "Продажа", "comment": ""}, {"num": "25", "segment": "ДКК", "serverType": "8 GPU", "client": "ВЭБ", "dProduct": "", "installDate": "", "productVersion": "", "serial": "", "crmLink": "https://app.sbercrm.com/#/e/Deal/77eb6be3-ec41-498c-a89a-db4340cda41c", "sdbManager": "Петр Костюков", "sdbRp": "Александр Черных", "saleType": "Продажа", "comment": ""}, {"num": "26", "segment": "КСБ", "serverType": "4 GPU", "client": "ГЕОПРОМИНВЕСТ", "dProduct": "", "installDate": "", "productVersion": "", "serial": "", "crmLink": "https://app.sbercrm.com/#/e/Deal/6ac170cc-7142-412a-81af-634ddf17fd69", "sdbManager": "Зубкова Ольга", "sdbRp": "Георгий Майоров", "saleType": "Продажа", "comment": ""}, {"num": "27", "segment": "СКМ", "serverType": "4 GPU", "client": "РКК Энергия", "dProduct": "", "installDate": "", "productVersion": "", "serial": "", "crmLink": "https://app.sbercrm.com/#/e/Deal/2ddb2d96-2004-40d8-9609-6493e6b09d00", "sdbManager": "Константин Арсенов", "sdbRp": "", "saleType": "Продажа", "comment": ""}, {"num": "28", "segment": "КСБ", "serverType": "8 GPU", "client": "ГК АНТЕЙ", "dProduct": "", "installDate": "", "productVersion": "", "serial": "", "crmLink": "https://app.sbercrm.com/#/e/Deal/b5d35c8d-32b9-4be9-851a-64aebdcc3aca?tab=0", "sdbManager": "Жабин Андрей", "sdbRp": "", "saleType": "Продажа", "comment": ""}, {"num": "29", "segment": "КСБ", "serverType": "4 GPU", "client": "РСТЕХ 1 (РС, РОССИЙСКИЙ РЕГИСТР, РМРС, РОССИЙСКИЙ МОРСКОЙ РЕГИСТР СУДОХОДСТВА, ФАУ РОССИЙСКИЙ МОРСКОЙ РЕГИСТР СУДОХОДСТВА)", "dProduct": "", "installDate": "", "productVersion": "", "serial": "", "crmLink": "https://app.sbercrm.com/#/e/Deal/01cd5795-c110-4f7d-9add-96df22681c5a", "sdbManager": "Беглов Роман", "sdbRp": "", "saleType": "Продажа", "comment": ""}, {"num": "30", "segment": "КСБ", "serverType": "4 GPU", "client": "РСТЕХ 2 (РС, РОССИЙСКИЙ РЕГИСТР, РМРС, РОССИЙСКИЙ МОРСКОЙ РЕГИСТР СУДОХОДСТВА, ФАУ РОССИЙСКИЙ МОРСКОЙ РЕГИСТР СУДОХОДСТВА)", "dProduct": "", "installDate": "", "productVersion": "", "serial": "", "crmLink": "https://app.sbercrm.com/#/e/Deal/01cd5795-c110-4f7d-9add-96df22681c5a", "sdbManager": "Беглов Роман", "sdbRp": "", "saleType": "Продажа", "comment": ""}, {"num": "31", "segment": "ДКК", "serverType": "8 GPU", "client": "АО \"РОССИЙСКИЙ ЭКСПОРТНЫЙ ЦЕНТР\"", "dProduct": "", "installDate": "", "productVersion": "", "serial": "", "crmLink": "https://app.sbercrm.com/#/e/Deal/4122547e-3b1f-4d98-b2b3-ebdae5320942", "sdbManager": "Петр Костюков", "sdbRp": "", "saleType": "Продажа", "comment": ""}, {"num": "32", "segment": "", "serverType": "", "client": "? НАСК", "dProduct": "", "installDate": "", "productVersion": "", "serial": "", "crmLink": "", "sdbManager": "Константин Арсенов", "sdbRp": "", "saleType": "", "comment": ""}];
 
   // ---- ID строк и слияние одновременных правок ----
   // Каждая строка таблицы получает служебный _rid. У «старых» строк без _rid
@@ -1980,6 +2046,7 @@
       dateFields: opts.dateFields || [],
       linkFields: opts.linkFields || [],
       chipFields: opts.chipFields || {},
+      personFields: opts.personFields || {},
       addRowLabel: opts.addRowLabel || 'Добавить проект',
       showSectionTitles: opts.showSectionTitles !== false,
       showAddRowButton: opts.showAddRowButton !== false,
@@ -2276,6 +2343,41 @@
     }
   }
 
+  // Ячейка с человеком: имя — ссылка на его страницу в Confluence (если она
+  // известна), клик мимо имени открывает список для выбора.
+  function renderPersonCell(cell, value, cfg){
+    cell.innerHTML = '';
+    if(!value){
+      var empty = document.createElement('span');
+      empty.className = 'cell-link-empty';
+      empty.textContent = cfg.placeholder || '— выбрать —';
+      cell.appendChild(empty);
+      return;
+    }
+    var person = cfg.people.find(function(p){ return p.name === value; });
+    var nameEl;
+    if(person && person.url){
+      nameEl = document.createElement('a');
+      nameEl.href = person.url; nameEl.target = '_blank'; nameEl.rel = 'noopener';
+      nameEl.className = 'person-cell-link'; nameEl.title = 'Открыть страницу в Confluence';
+      nameEl.addEventListener('click', function(ev){ ev.stopPropagation(); });
+    } else {
+      nameEl = document.createElement('span');
+    }
+    nameEl.textContent = value;
+    cell.appendChild(nameEl);
+    var caret = document.createElement('span');
+    caret.className = 'person-cell-caret';
+    caret.title = 'Выбрать из списка';
+    caret.textContent = '▾';
+    cell.appendChild(caret);
+  }
+
+  function personUrl(cfg, name){
+    var person = cfg && cfg.people.find(function(p){ return p.name === name; });
+    return person && person.url ? person.url : null;
+  }
+
   // Product ("ПАК"/"Гибрид") decides which questionnaire spec applies to a
   // row — this rebuilds just the Опросник cell so it reflects a product
   // change immediately, without needing a full table re-render.
@@ -2404,6 +2506,8 @@
           td.appendChild(pspan);
         } else if(c.linkFields.indexOf(field) !== -1){
           renderLinkCell(td, val);
+        } else if(c.personFields[field]){
+          renderPersonCell(td, val, c.personFields[field]);
         } else if(c.chipFields[field]){
           var cfg = c.chipFields[field];
           var cspan = document.createElement('span');
@@ -3312,6 +3416,44 @@
     serverField.appendChild(serverLabel); serverField.appendChild(serverInput);
     body.appendChild(serverField);
 
+    var jiraField = document.createElement('div'); jiraField.className = 'pt-field';
+    var jiraLabel = document.createElement('label'); jiraLabel.textContent = 'Ссылка на Jira';
+    var jiraRow = document.createElement('div'); jiraRow.className = 'pt-link-row';
+    var jiraInput = document.createElement('input'); jiraInput.type = 'text';
+    jiraInput.placeholder = 'https://tasks.sberdevices.ru/browse/...';
+    jiraInput.value = draft.jiraLink || '';
+    var jiraOpen = document.createElement('a');
+    jiraOpen.className = 'pt-link-open'; jiraOpen.target = '_blank'; jiraOpen.rel = 'noopener';
+    jiraOpen.textContent = 'Открыть ↗';
+    function syncJiraOpen(){
+      var v = jiraInput.value.trim();
+      jiraOpen.style.display = /^https?:\/\//i.test(v) ? '' : 'none';
+      jiraOpen.href = v || '#';
+    }
+    jiraInput.addEventListener('input', syncJiraOpen);
+    syncJiraOpen();
+    jiraRow.appendChild(jiraInput); jiraRow.appendChild(jiraOpen);
+    jiraField.appendChild(jiraLabel); jiraField.appendChild(jiraRow);
+    body.appendChild(jiraField);
+
+    var assigneeField = document.createElement('div'); assigneeField.className = 'pt-field';
+    var assigneeLabel = document.createElement('label'); assigneeLabel.textContent = 'Исполнитель';
+    var assigneeInput = document.createElement('input'); assigneeInput.type = 'text';
+    assigneeInput.placeholder = 'ФИО исполнителя';
+    assigneeInput.value = draft.assignee || '';
+    var assigneeList = document.createElement('datalist');
+    assigneeList.id = 'pt-assignee-options';
+    var assigneeNames = [];
+    RESPONSIBLE_LIST.map(function(p){ return p.name; }).concat(TB_RESPONSIBLE_OPTIONS).forEach(function(n){
+      if(n && assigneeNames.indexOf(n) === -1 && n.indexOf('Не назначен') !== 0) assigneeNames.push(n);
+    });
+    assigneeNames.forEach(function(n){
+      var o = document.createElement('option'); o.value = n; assigneeList.appendChild(o);
+    });
+    assigneeInput.setAttribute('list', assigneeList.id);
+    assigneeField.appendChild(assigneeLabel); assigneeField.appendChild(assigneeInput); assigneeField.appendChild(assigneeList);
+    body.appendChild(assigneeField);
+
     var statusField = document.createElement('div'); statusField.className = 'pt-field';
     var statusLabel = document.createElement('label'); statusLabel.textContent = 'Статус';
     var statusRow = document.createElement('div'); statusRow.className = 'pt-status-row';
@@ -3391,6 +3533,8 @@
         title: title,
         description: descInput.value.trim(),
         server: serverInput.value.trim(),
+        jiraLink: jiraInput.value.trim(),
+        assignee: assigneeInput.value.trim(),
         status: currentStatus,
         timeUnit: unit,
         timeValue: value
@@ -3545,6 +3689,11 @@
             var cell = sheet.getCell(currentRow, i+1);
             var v = r[col.id];
             cell.value = (v === undefined || v === null) ? '' : v;
+            var vUrl = v && c.personFields[col.id] ? personUrl(c.personFields[col.id], v) : null;
+            if(vUrl){
+              cell.value = { text: v, hyperlink: vUrl };
+              cell.font = { color:{argb:'FF1F6FB2'}, underline:true };
+            }
             cell.alignment = { wrapText:true, vertical:'top' };
           });
           currentRow++;
@@ -3624,7 +3773,8 @@
 
   function deleteRow(c, section, rowIdx){
     var r = c.state[section][rowIdx];
-    var label = (r && r.project) ? ('«' + r.project + '»') : ('#' + (Number(rowIdx) + 1));
+    var name = r && (r.project || r.client);
+    var label = name ? ('«' + name + '»') : ('#' + (Number(rowIdx) + 1));
     if(!window.confirm('Удалить строку ' + label + '?')) return;
     c.state[section].splice(rowIdx, 1);
     renumber(c, section);
@@ -3911,7 +4061,7 @@
   function startEdit(cell, controller){
     if(activeCell) commitEdit(activeCell, activeController);
     cell.dataset.prev = cell.innerText;
-    if(cell.dataset.kind === 'cell' && (cell.dataset.field === 'status' || cell.dataset.field === 'product' || controller.chipFields[cell.dataset.field])){
+    if(cell.dataset.kind === 'cell' && (cell.dataset.field === 'status' || cell.dataset.field === 'product' || controller.chipFields[cell.dataset.field] || controller.personFields[cell.dataset.field])){
       cell.textContent = (controller.state[cell.dataset.section][cell.dataset.row][cell.dataset.field] || '');
       cell.dataset.prev = cell.textContent;
     }
@@ -3963,6 +4113,8 @@
         pspan.textContent = text;
         cell.appendChild(pspan);
         refreshQuestionnaireCell(controller, section, r);
+      } else if(controller.personFields[field]){
+        renderPersonCell(cell, text, controller.personFields[field]);
       } else if(controller.chipFields[field]){
         var cfg = controller.chipFields[field];
         cell.innerHTML = '';
@@ -4257,6 +4409,65 @@
     positionPopover(pop, cell);
   }
 
+  function openPersonPicker(cell, controller, field, cfg){
+    closePopover();
+    var section = cell.dataset.section, rowIdx = cell.dataset.row;
+
+    var pop = document.createElement('div');
+    pop.className = 'popover responsible-popover';
+
+    var label = document.createElement('div');
+    label.className = 'popover-label';
+    label.textContent = cfg.title || 'Выбрать';
+    pop.appendChild(label);
+
+    function commitPerson(name){
+      controller.state[section][rowIdx][field] = name;
+      controller.persistSection(section);
+      renderPersonCell(cell, name, cfg);
+      closePopover();
+    }
+
+    var list = document.createElement('div');
+    list.className = 'popover-list';
+    cfg.people.forEach(function(p){
+      var rowEl = document.createElement('div');
+      rowEl.className = 'person-row';
+      var nameEl = document.createElement('span');
+      nameEl.className = 'person-name';
+      nameEl.textContent = p.name;
+      rowEl.appendChild(nameEl);
+      if(p.url){
+        var link = document.createElement('a');
+        link.className = 'person-link';
+        link.href = p.url; link.target = '_blank'; link.rel = 'noopener';
+        link.title = 'Открыть страницу в Confluence';
+        link.textContent = '↗';
+        link.addEventListener('click', function(ev){ ev.stopPropagation(); });
+        rowEl.appendChild(link);
+      }
+      rowEl.addEventListener('click', function(){ commitPerson(p.name); });
+      list.appendChild(rowEl);
+    });
+    pop.appendChild(list);
+
+    var clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.className = 'status-option status-custom-btn';
+    clearBtn.textContent = 'Очистить';
+    clearBtn.addEventListener('click', function(){ commitPerson(''); });
+    pop.appendChild(clearBtn);
+
+    var customBtn = document.createElement('button');
+    customBtn.type = 'button';
+    customBtn.className = 'status-option status-custom-btn';
+    customBtn.textContent = 'Другое (свой текст)';
+    customBtn.addEventListener('click', function(){ closePopover(); startEdit(cell, controller); });
+    pop.appendChild(customBtn);
+
+    positionPopover(pop, cell);
+  }
+
   function openChipPicker(cell, controller, field, cfg){
     closePopover();
     var section = cell.dataset.section, rowIdx = cell.dataset.row;
@@ -4375,6 +4586,7 @@
       if(field === 'status'){ openStatusPicker(cell, controller); return; }
       if(field === 'product'){ openProductPicker(cell, controller); return; }
       if(field === 'responsible'){ openResponsiblePicker(cell, controller); return; }
+      if(controller.personFields[field]){ openPersonPicker(cell, controller, field, controller.personFields[field]); return; }
       if(controller.chipFields[field]){
         var cfg = controller.chipFields[field];
         openChipPicker(cell, controller, field, cfg);
@@ -4494,12 +4706,51 @@
     sectionDefaults: {items: REQUIREMENTS_ITEMS_DEFAULT}
   });
 
+  var deliveryController = createController({
+    viewKey: 'delivery',
+    storagePrefix: 'delivery',
+    dom: {
+      headRow: document.getElementById('headRow-delivery'),
+      tableBody: document.getElementById('tableBody-delivery')
+    },
+    hasPipeline: false,
+    showSectionTitles: false,
+    showAddRowButton: false,
+    dateFields: ['installDate'],
+    linkFields: ['crmLink'],
+    chipFields: {
+      segment: {title: 'Сегмент', options: DELIVERY_SEGMENT_OPTIONS, classFn: optionIndexClassFn(DELIVERY_SEGMENT_OPTIONS), placeholder: '— выбрать —'},
+      serverType: {title: 'Тип сервера', options: DELIVERY_SERVER_TYPE_OPTIONS, classFn: optionIndexClassFn(DELIVERY_SERVER_TYPE_OPTIONS), placeholder: '— выбрать —'},
+      dProduct: {title: 'Продукт', options: DELIVERY_PRODUCT_OPTIONS, classFn: optionIndexClassFn(DELIVERY_PRODUCT_OPTIONS), placeholder: '— выбрать —'},
+      saleType: {title: 'Продажа/тест', options: DELIVERY_SALE_TYPE_OPTIONS, classFn: optionIndexClassFn(DELIVERY_SALE_TYPE_OPTIONS), placeholder: '— выбрать —'}
+    },
+    personFields: {
+      sdbManager: {title: 'Менеджер СДБ', people: DELIVERY_MANAGER_LIST, placeholder: '— выбрать —'},
+      sdbRp: {title: 'РП СДБ', people: DELIVERY_RP_LIST, placeholder: '— выбрать —'}
+    },
+    addRowLabel: 'Добавить поставку',
+    columnsDefault: DELIVERY_COLUMNS_DEFAULT,
+    titlesDefault: DELIVERY_TITLES_DEFAULT,
+    sectionKeys: ['items'],
+    sectionDefaults: {items: DELIVERY_ITEMS_DEFAULT}
+  });
+
   document.getElementById('addColBtn-registry').addEventListener('click', function(){ addColumn(registryController); });
   document.getElementById('resetBtn-registry').addEventListener('click', function(){ resetController(registryController); });
   document.getElementById('addColBtn-projects').addEventListener('click', function(){ addColumn(projectsController); });
   document.getElementById('addRowBtn-projects').addEventListener('click', function(){ addRowToDefaultSection(projectsController); });
   document.getElementById('resetBtn-projects').addEventListener('click', function(){ resetController(projectsController); });
   document.getElementById('addColBtn-requirements').addEventListener('click', function(){ addColumn(requirementsController); });
+  document.getElementById('addRowBtn-delivery').addEventListener('click', function(){ addRowToDefaultSection(deliveryController); });
+  document.getElementById('addColBtn-delivery').addEventListener('click', function(){ addColumn(deliveryController); });
+  document.getElementById('resetBtn-delivery').addEventListener('click', function(){ resetController(deliveryController); });
+  document.getElementById('searchInput-delivery').addEventListener('input', function(e){
+    deliveryController.searchQuery = e.target.value;
+    applyFilters(deliveryController);
+  });
+  document.getElementById('downloadExcelBtn-delivery').addEventListener('click', function(){
+    exportControllerToExcel(deliveryController, 'Реестр поставки ПАК.xlsx', 'Реестр поставки ПАК');
+  });
   document.getElementById('resetBtn-requirements').addEventListener('click', function(){ resetController(requirementsController); });
 
   document.getElementById('searchInput-registry').addEventListener('input', function(e){
@@ -4558,6 +4809,7 @@
     loadController(registryController);
     loadController(projectsController);
     loadController(requirementsController);
+    loadController(deliveryController);
     setInterval(pollRemoteChanges, 15000);
     document.addEventListener('visibilitychange', function(){
       if(document.visibilityState === 'visible') pollRemoteChanges();

@@ -49,10 +49,10 @@ test("tools/list: все инструменты с русскими описан
   const { tools } = await client.listTools();
   const names = tools.map((t) => t.name).sort();
   assert.deepEqual(names, [
-    "add_week_task", "create_project", "find_migrations", "find_projects", "find_questionnaire_gaps",
-    "find_requirements", "get_architecture", "get_connection_details", "get_overview", "get_project",
+    "add_week_task", "create_pak_delivery", "create_project", "find_migrations", "find_pak_deliveries", "find_projects",
+    "find_questionnaire_gaps", "find_requirements", "get_architecture", "get_connection_details", "get_overview", "get_project",
     "get_project_stats", "get_questionnaire", "get_week_tasks", "search_site", "set_questionnaire_answer",
-    "update_migration", "update_project", "update_requirement", "update_week_task"
+    "update_migration", "update_pak_delivery", "update_project", "update_requirement", "update_week_task"
   ]);
   for (const t of tools) {
     assert.match(t.description, /[а-я]/i, t.name);
@@ -194,6 +194,11 @@ test("add_week_task / update_week_task, неделя появляется в к�
   const upd = await call(client, "update_week_task", { task_id: id, status: "Закрыто", new_date: addDaysIso(nextMonday, 1) });
   assert.equal(upd["задача"]["статус"], "Закрыто");
   assert.equal(upd["задача"]["день"], "вт");
+  const upd2 = await call(client, "update_week_task", { task_id: id, assignee: "Олег Яшин", jira_link: "https://tasks.sberdevices.ru/browse/SDBCTO-1" });
+  assert.equal(upd2["задача"]["исполнитель"], "Олег Яшин");
+  assert.equal(upd2["задача"]["jira"], "https://tasks.sberdevices.ru/browse/SDBCTO-1");
+  const byAssignee = await call(client, "get_week_tasks", { week: nextMonday, assignee: "яшин" });
+  assert.equal(byAssignee["итого"]["всего"], 1);
 });
 
 test("update_requirement и update_migration создают ключи со значениями по умолчанию", async () => {
@@ -212,4 +217,23 @@ test("параллельные записи MCP не теряют правки �
   const w = await call(client, "get_week_tasks", { project: projectName });
   const names = w["проекты"][0]["задачи"].map((t) => t["название"]);
   for (const t of titles) assert.ok(names.includes(t), t);
+});
+
+test("реестр поставки ПАК: поиск, ссылки на Confluence, добавление и правка", async () => {
+  const all = await call(client, "find_pak_deliveries", { limit: 50 });
+  assert.equal(all["всего"], site.views.delivery.sectionDefaults.items.length);
+  const ksb8 = await call(client, "find_pak_deliveries", { segment: "ксб", server_type: "8 gpu" });
+  assert.ok(ksb8["всего"] >= 1);
+  const ultramar = (await call(client, "find_pak_deliveries", { query: "УЛЬТРАМАР" }))["поставки"][0];
+  assert.equal(ultramar["Серийный номер"], "A514359X5B16121");
+  assert.equal(ultramar["confluence"]["РП СДБ"], "https://sberworks.ru/wiki/display/~galmayorov");
+  const upd = await call(client, "update_pak_delivery", { entry: ultramar.id, install_date: "2026-10-05", product: "cowork", server_type: "2 gpu" });
+  assert.equal(upd["поставка"]["Дата установки"], "05.10.2026");
+  assert.equal(upd["поставка"]["Продукт"], "Cowork");
+  assert.equal(upd["поставка"]["Тип сервера"], "2 GPU");
+  const created = await call(client, "create_pak_delivery", { client: "ООО Тест Поставка", segment: "КСБ", sale_type: "тестирование" });
+  assert.equal(created["добавлена"]["№"], String(all["всего"] + 1));
+  assert.equal(created["добавлена"]["Продажа/тест"], "Тестирование");
+  const s = await call(client, "search_site", { query: "Тест Поставка" });
+  assert.equal(s["результаты"][0]["где"], "Реестр поставки ПАК / Реестр поставки ПАК");
 });

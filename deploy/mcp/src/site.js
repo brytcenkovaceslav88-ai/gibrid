@@ -42,12 +42,26 @@ const VIEW_DEFS = {
     excludeColumns: [],
     globalNumbering: false,
     hasPlanning: false
+  },
+  delivery: {
+    prefix: "delivery",
+    title: "Реестр поставки ПАК",
+    columnsDefault: "DELIVERY_COLUMNS_DEFAULT",
+    titlesDefault: "DELIVERY_TITLES_DEFAULT",
+    sectionKeys: ["items"],
+    sectionDefaults: { items: "DELIVERY_ITEMS_DEFAULT" },
+    excludeSections: [],
+    excludeColumns: [],
+    globalNumbering: false,
+    hasPlanning: false
   }
 };
 
 const EXPORTED_CONSTS = [
   "STAGES", "PRODUCTS", "COMPLIANCE_STAGES", "DECISIVE_OPTIONS", "REQ_SECTIONS",
-  "PRIORITY_OPTIONS", "TB_RESPONSIBLE_OPTIONS", "RESPONSIBLE_LIST", "QUESTIONNAIRE_SPECS"
+  "PRIORITY_OPTIONS", "TB_RESPONSIBLE_OPTIONS", "RESPONSIBLE_LIST", "QUESTIONNAIRE_SPECS",
+  "DELIVERY_SEGMENT_OPTIONS", "DELIVERY_SERVER_TYPE_OPTIONS", "DELIVERY_PRODUCT_OPTIONS",
+  "DELIVERY_SALE_TYPE_OPTIONS", "DELIVERY_MANAGER_LIST", "DELIVERY_RP_LIST"
 ];
 
 const hostClone = (x) => (x === undefined ? undefined : JSON.parse(JSON.stringify(x)));

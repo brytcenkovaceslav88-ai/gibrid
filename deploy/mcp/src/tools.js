@@ -75,6 +75,62 @@ function projectBrief(site, section, row) {
   return out;
 }
 
+// ---------- Реестр поставки ПАК ----------
+
+const deliveryFieldSchema = {
+  segment: z.string().optional().describe("Сегмент, например КСБ, ДКК, СКМ, CIB, ДЗО, ТЕСТ"),
+  server_type: z.string().optional().describe("Тип сервера: «8 GPU», «4 GPU» или «2 GPU»"),
+  product: z.string().optional().describe("Продукт: «GE» или «Cowork»"),
+  install_date: z.string().optional().describe("Дата установки: ГГГГ-ММ-ДД или ДД.ММ.ГГГГ (пустая строка — очистить)"),
+  product_version: z.string().optional().describe("Версия продукта"),
+  serial: z.string().optional().describe("Серийный номер сервера"),
+  crm_link: z.string().optional().describe("Ссылка на сделку в CRM"),
+  manager: z.string().optional().describe("Менеджер СДБ (ФИО)"),
+  rp: z.string().optional().describe("РП СДБ (ФИО)"),
+  sale_type: z.string().optional().describe("Продажа/тест: «Продажа», «Тестирование» или «Тест + Продажа»"),
+  comment: z.string().optional().describe("Комментарий")
+};
+const DELIVERY_FIELD_COLUMNS = {
+  segment: "segment", server_type: "serverType", product: "dProduct", install_date: "installDate",
+  product_version: "productVersion", serial: "serial", crm_link: "crmLink", manager: "sdbManager",
+  rp: "sdbRp", sale_type: "saleType", comment: "comment"
+};
+
+function normalizeDeliveryFields(site, args) {
+  const c = site.consts;
+  const lists = {
+    segment: c.DELIVERY_SEGMENT_OPTIONS, server_type: c.DELIVERY_SERVER_TYPE_OPTIONS,
+    product: c.DELIVERY_PRODUCT_OPTIONS, sale_type: c.DELIVERY_SALE_TYPE_OPTIONS,
+    manager: (c.DELIVERY_MANAGER_LIST || []).map((p) => p.name), rp: (c.DELIVERY_RP_LIST || []).map((p) => p.name)
+  };
+  const out = {};
+  for (const [arg, col] of Object.entries(DELIVERY_FIELD_COLUMNS)) {
+    if (args[arg] === undefined) continue;
+    let v = String(args[arg]).trim();
+    if (arg === "install_date" && v) {
+      v = isoToDmy(parseUserDate(v, "дату установки"));
+    } else if (lists[arg] && v) {
+      // Как на сайте: значение из списка приводим к написанию из списка, свой текст тоже допустим.
+      v = canonical(v, lists[arg] || []) || v;
+    }
+    out[col] = v;
+  }
+  return out;
+}
+
+function deliveryToObject(site, view, section, row) {
+  const out = rowToObject(view, section, row, { maxText: 400 });
+  delete out["раздел"];
+  const links = {};
+  const find = (list, name) => (list || []).find((p) => p.name === name);
+  const m = find(site.consts.DELIVERY_MANAGER_LIST, row.sdbManager);
+  const r = find(site.consts.DELIVERY_RP_LIST, row.sdbRp);
+  if (m && m.url) links["Менеджер СДБ"] = m.url;
+  if (r && r.url) links["РП СДБ"] = r.url;
+  if (Object.keys(links).length) out["confluence"] = links;
+  return out;
+}
+
 const limitSchema = z.number().int().min(1).max(50).optional().describe("Сколько записей вернуть (1–50, по умолчанию 20)");
 const offsetSchema = z.number().int().min(0).optional().describe("Смещение для следующей страницы (значение «следующий_offset» из прошлого ответа)");
 const projectRef = z.string().min(1).describe("Проект: название (можно часть), номер из колонки «№» или id");
@@ -367,14 +423,15 @@ export function registerTools(server, log) {
   tool("get_week_tasks", {
     title: "Задачи на неделю",
     description:
-      "Покажи задачи из колонок недель по проектам со статусами («Не начат», «В работе», «Закрыто»), днями, серверами и трудозатратами. " +
+      "Покажи задачи из колонок недель по проектам со статусами («Не начат», «В работе», «Закрыто»), днями, серверами, исполнителями, ссылками на Jira и трудозатратами. " +
       "Используй, когда спрашивают: «какой статус задач на этой неделе», «что в работе на неделе», " +
       "«задачи на следующую неделю», «что сделано по проекту … за неделю».",
     inputSchema: {
       week: z.string().optional().describe("Неделя: «текущая» (по умолчанию), «следующая», «прошлая» или любая дата этой недели"),
       project: z.string().optional().describe("Только по этому проекту (название, номер или id)"),
       status: z.string().optional().describe("Только задачи со статусом: «Не начат», «В работе» или «Закрыто»"),
-      responsible: z.string().optional().describe("Только проекты этого ответственного РП (часть ФИО)")
+      responsible: z.string().optional().describe("Только проекты этого ответственного РП (часть ФИО)"),
+      assignee: z.string().optional().describe("Только задачи этого исполнителя (часть ФИО)")
     },
     annotations: READ
   }, async (a) => {
@@ -391,6 +448,7 @@ export function registerTools(server, log) {
       if (only && row._rid !== only) continue;
       if (statusKey && task.status !== statusKey) continue;
       if (a.responsible && !contains(row.responsible, a.responsible)) continue;
+      if (a.assignee && !contains(task.assignee, a.assignee)) continue;
       if (!groups.has(row._rid)) {
         groups.set(row._rid, { "проект": row.project, id: row._rid, "статус_проекта": row.status || "", "РП": row.responsible || "", "задачи": [] });
       }
@@ -495,6 +553,48 @@ export function registerTools(server, log) {
     return out;
   });
 
+  tool("find_pak_deliveries", {
+    title: "Реестр поставки ПАК",
+    description:
+      "Найди записи во вкладке «Реестр поставки ПАК»: сегмент, тип сервера (8/4/2 GPU), клиент, продукт (GE/Cowork), дата установки, " +
+      "версия, серийный номер, сделка в CRM, менеджер СДБ, РП СДБ, продажа или тест. Используй, когда спрашивают: " +
+      "«какие ПАК поставлены клиенту …», «серийный номер сервера у …», «сколько 8 GPU в сегменте КСБ», «поставки у менеджера …», " +
+      "«где ещё не установлен ПАК».",
+    inputSchema: {
+      query: z.string().optional().describe("Текст для поиска (клиент, серийный номер, комментарий…)"),
+      segment: z.string().optional().describe("Сегмент (КСБ, ДКК, СКМ, CIB, ДЗО, ТЕСТ)"),
+      server_type: z.string().optional().describe("Тип сервера: «8 GPU», «4 GPU», «2 GPU»"),
+      product: z.string().optional().describe("Продукт: «GE» или «Cowork»"),
+      manager: z.string().optional().describe("Менеджер СДБ (часть ФИО)"),
+      rp: z.string().optional().describe("РП СДБ (часть ФИО)"),
+      sale_type: z.string().optional().describe("«Продажа», «Тестирование» или «Тест + Продажа»"),
+      installed: z.boolean().optional().describe("true — только с датой установки, false — только без неё"),
+      limit: limitSchema,
+      offset: offsetSchema
+    },
+    annotations: READ
+  }, async (a) => {
+    const { site, view } = await loadView("delivery");
+    const same = (v, q) => !q || normText(v) === normText(q);
+    const items = allRows(view).filter(({ row }) => {
+      if (a.query && !contains(textOfRow(row), a.query)) return false;
+      if (!same(row.segment, a.segment)) return false;
+      if (!same(row.serverType, a.server_type)) return false;
+      if (!same(row.dProduct, a.product)) return false;
+      if (!same(row.saleType, a.sale_type)) return false;
+      if (a.manager && !contains(row.sdbManager, a.manager)) return false;
+      if (a.rp && !contains(row.sdbRp, a.rp)) return false;
+      if (a.installed !== undefined && Boolean(String(row.installDate || "").trim()) !== a.installed) return false;
+      return true;
+    });
+    const { out, page } = paginate(items, a.limit || 20, a.offset || 0);
+    const count = (field) => items.reduce((acc, { row }) => { const k = row[field] || "—"; acc[k] = (acc[k] || 0) + 1; return acc; }, {});
+    out["по_типу_сервера"] = count("serverType");
+    out["по_сегменту"] = count("segment");
+    out["поставки"] = page.map(({ section, row }) => deliveryToObject(site, view, section, row));
+    return out;
+  });
+
   tool("get_architecture", {
     title: "Архитектура платформы",
     description:
@@ -517,7 +617,7 @@ export function registerTools(server, log) {
   tool("search_site", {
     title: "Поиск по всему сайту PMO",
     description:
-      "Ищи текст по всем вкладкам PMO сразу: проекты, опросники, задачи по неделям, реестр миграций, требования, архитектура. " +
+      "Ищи текст по всем вкладкам PMO сразу: проекты, опросники, задачи по неделям, реестр поставки ПАК, реестр миграций, требования, архитектура. " +
       "Используй, когда неясно, где искать: «где упоминается …», «найди всё про …».",
     inputSchema: {
       query: z.string().min(2).describe("Что искать"),
@@ -554,17 +654,17 @@ export function registerTools(server, log) {
       }
       for (const [date, list] of Object.entries(row.planning || {})) {
         for (const t of Array.isArray(list) ? list : []) {
-          const text = [t.title, t.description, t.server].filter(Boolean).join(" — ");
+          const text = [t.title, t.description, t.server, t.assignee, t.jiraLink].filter(Boolean).join(" — ");
           if (normText(text).includes(q)) add({ "где": "Задачи по неделям", "проект": row.project, "задача_id": t.id, "дата": isoToDmy(date), "фрагмент": snippet(text) });
         }
       }
     }
-    for (const [viewId, label] of [["registry", "Реестр миграций"], ["requirements", "Требования"]]) {
+    for (const [viewId, label] of [["delivery", "Реестр поставки ПАК"], ["registry", "Реестр миграций"], ["requirements", "Требования"]]) {
       const { view } = await loadView(viewId);
       for (const { section, row } of allRows(view)) {
         for (const col of view.columns) {
           const v = row[col.id];
-          if (typeof v === "string" && normText(v).includes(q)) add({ "где": `${label} / ${section.title}`, "запись": row.project || row.requirement, id: row._rid, "поле": col.label, "фрагмент": snippet(v) });
+          if (typeof v === "string" && normText(v).includes(q)) add({ "где": `${label} / ${section.title}`, "запись": row.project || row.requirement || row.client, id: row._rid, "поле": col.label, "фрагмент": snippet(v) });
         }
       }
     }
@@ -686,6 +786,8 @@ export function registerTools(server, log) {
       title: z.string().min(1).describe("Название задачи"),
       description: z.string().optional().describe("Описание"),
       server: z.string().optional().describe("Сервер, к которому относится задача"),
+      assignee: z.string().optional().describe("Исполнитель (ФИО)"),
+      jira_link: z.string().optional().describe("Ссылка на задачу в Jira"),
       status: z.string().optional().describe("Статус: «Не начат» (по умолчанию), «В работе» или «Закрыто»"),
       time_value: z.string().optional().describe("Трудозатраты, число"),
       time_unit: z.enum(["days", "hours"]).optional().describe("Единицы трудозатрат: days — дни (по умолчанию), hours — часы")
@@ -700,6 +802,8 @@ export function registerTools(server, log) {
       title: a.title.trim(),
       description: a.description || "",
       server: a.server || "",
+      jiraLink: a.jira_link || "",
+      assignee: a.assignee || "",
       status: a.status ? taskStatusKey(a.status) : "not_started",
       timeUnit: a.time_unit || "days",
       timeValue: a.time_value || ""
@@ -714,7 +818,7 @@ export function registerTools(server, log) {
   tool("update_week_task", {
     title: "Изменить задачу недели",
     description:
-      "Измени задачу из колонки недели: статус, название, описание, сервер, трудозатраты или перенеси на другой день. " +
+      "Измени задачу из колонки недели: статус, название, описание, сервер, исполнителя, ссылку на Jira, трудозатраты или перенеси на другой день. " +
       "Используй, когда просят: «закрой задачу …», «переведи задачу в работу», «перенеси задачу на пятницу». " +
       "id задачи есть в ответах get_week_tasks и get_project.",
     inputSchema: {
@@ -723,6 +827,8 @@ export function registerTools(server, log) {
       title: z.string().optional().describe("Новое название"),
       description: z.string().optional().describe("Новое описание"),
       server: z.string().optional().describe("Сервер"),
+      assignee: z.string().optional().describe("Исполнитель (ФИО)"),
+      jira_link: z.string().optional().describe("Ссылка на задачу в Jira"),
       time_value: z.string().optional().describe("Трудозатраты, число"),
       time_unit: z.enum(["days", "hours"]).optional().describe("Единицы: days или hours"),
       new_date: z.string().optional().describe("Перенести на день: ГГГГ-ММ-ДД, ДД.ММ.ГГГГ, «сегодня», «завтра» (только пн–пт)")
@@ -737,6 +843,8 @@ export function registerTools(server, log) {
     if (a.title !== undefined) task.title = a.title;
     if (a.description !== undefined) task.description = a.description;
     if (a.server !== undefined) task.server = a.server;
+    if (a.assignee !== undefined) task.assignee = a.assignee;
+    if (a.jira_link !== undefined) task.jiraLink = a.jira_link;
     if (a.time_value !== undefined) task.timeValue = a.time_value;
     if (a.time_unit !== undefined) task.timeUnit = a.time_unit;
     if (a.new_date !== undefined) {
@@ -752,6 +860,48 @@ export function registerTools(server, log) {
       }
     }
     return () => ({ "проект": row.project, "задача": formatTask(task, date) });
+  }).then((fn) => fn()));
+
+  tool("create_pak_delivery", {
+    title: "Добавить поставку ПАК",
+    description:
+      "Добавь строку во вкладку «Реестр поставки ПАК». Используй, когда просят: «добавь поставку ПАК для …», " +
+      "«заведи сервер 8 GPU для клиента …». Удалить строку через Коворк нельзя — только на сайте.",
+    inputSchema: {
+      client: z.string().min(1).describe("Клиент"),
+      ...deliveryFieldSchema
+    },
+    annotations: WRITE
+  }, async (a) => changeView("delivery", (site, view) => {
+    const fields = normalizeDeliveryFields(site, a);
+    const section = view.sections[view.sections.length - 1];
+    const row = { _rid: site.newRowId() };
+    for (const col of view.columns) row[col.id] = "";
+    Object.assign(row, fields, { client: a.client.trim() });
+    section.rows.push(row);
+    if (view.columns.some((c) => c.id === "num")) row.num = String(section.rows.length);
+    return () => ({ "добавлена": deliveryToObject(site, view, section, row) });
+  }).then((fn) => fn()));
+
+  tool("update_pak_delivery", {
+    title: "Изменить поставку ПАК",
+    description:
+      "Измени строку во вкладке «Реестр поставки ПАК»: дату установки, версию, серийный номер, продукт, тип сервера, " +
+      "менеджера или РП СДБ, продажа/тест, комментарий. Используй, когда просят: «поставь дату установки у …», " +
+      "«обнови серийный номер …», «смени РП по поставке …». Меняются только переданные поля.",
+    inputSchema: {
+      entry: z.string().min(1).describe("Поставка: № строки, id или название клиента"),
+      client: z.string().optional().describe("Новое название клиента"),
+      ...deliveryFieldSchema
+    },
+    annotations: WRITE_IDEMPOTENT
+  }, async (a) => changeView("delivery", (site, view) => {
+    const { section, row } = resolveOne(view, a.entry, "client", "клиент");
+    const fields = normalizeDeliveryFields(site, a);
+    if (a.client !== undefined && a.client.trim()) fields.client = a.client.trim();
+    if (!Object.keys(fields).length) throw new UserError("Не указано ни одно поле для изменения.");
+    Object.assign(row, fields);
+    return () => ({ "поставка": deliveryToObject(site, view, section, row) });
   }).then((fn) => fn()));
 
   tool("update_requirement", {
@@ -815,7 +965,8 @@ export function registerTools(server, log) {
 
 export const SERVER_INSTRUCTIONS =
   "Коннектор к PMO-сайту pmo.gigaenterprise.ai: проекты внедрения GigaChat/GigaCowork (ПАК и Гибрид), " +
-  "опросники с данными клиентов и доступами, задачи по неделям, реестр миграций, требования и архитектура. " +
+  "опросники с данными клиентов и доступами, задачи по неделям, реестр поставки ПАК, реестр миграций, требования и архитектура. " +
   "Для вопросов «какие проекты в работе» — find_projects; «статус задач на неделю» — get_week_tasks; " +
   "«данные для подключения» — get_connection_details; «что в опроснике» — get_questionnaire; " +
+  "«поставки ПАК, серийные номера, тип сервера» — find_pak_deliveries; " +
   "если непонятно, где искать, — search_site. Изменения видны всем пользователям сайта сразу; удалять данные нельзя.";
