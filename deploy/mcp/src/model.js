@@ -330,7 +330,7 @@ export function questionnaireSummary(site, row, { includeHints = false, tabFilte
 // Поля опросника, относящиеся к доступу/подключению к серверам заказчика.
 export const CONNECTION_FIELD_IDS = [
   "access", "bmc_access", "client_domain", "client_certs", "nexus_account", "nexus_repos",
-  "rp_token", "hybrid_key", "internet_access", "os", "virtualization", "deployment", "gpu"
+  "rp_token", "hybrid_key", "salutespeech_key", "internet_access", "os", "virtualization", "deployment", "gpu"
 ];
 
 // ---------- Задачи по неделям ----------
