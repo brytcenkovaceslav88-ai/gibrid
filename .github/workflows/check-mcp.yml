@@ -1,0 +1,71 @@
+name: Check MCP connectivity (pmo.gigaenterprise.ai)
+
+on:
+  push:
+    branches:
+      - claude/deploy-project-domain-uji310
+    paths:
+      - ".github/workflows/check-mcp.yml"
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: [self-hosted, pmo-public]
+    env:
+      DOMAIN: pmo.gigaenterprise.ai
+    steps:
+      - name: Containers
+        run: docker compose -f /opt/pmo/deploy/docker-compose.yml --profile mcp ps || true
+
+      - name: DNS and firewall
+        run: |
+          echo "=== DNS ==="
+          getent hosts "$DOMAIN" || true
+          echo "=== public IP of this server ==="
+          curl -s -m 5 https://ifconfig.me || true; echo
+          echo "=== listening sockets :443 ==="
+          sudo ss -ltnp 2>/dev/null | grep -E ':443|:80 ' || true
+          echo "=== ufw ==="
+          sudo ufw status verbose 2>/dev/null || echo "ufw not available"
+
+      - name: TLS certificate chain
+        run: |
+          echo "=== certificates in nginx/certs/server.crt (subject / issuer only) ==="
+          awk '/BEGIN CERT/{n++} {print > "/tmp/pmo-cert-" n ".pem"}' /opt/pmo/deploy/nginx/certs/server.crt
+          for f in /tmp/pmo-cert-*.pem; do openssl x509 -in "$f" -noout -subject -issuer -enddate 2>/dev/null; echo "--"; done
+          rm -f /tmp/pmo-cert-*.pem
+          echo "=== what nginx presents ==="
+          echo | openssl s_client -connect 127.0.0.1:443 -servername "$DOMAIN" -showcerts 2>/dev/null | grep -E '^ [0-9] s:|^   i:' || true
+          echo | openssl s_client -connect 127.0.0.1:443 -servername "$DOMAIN" 2>/dev/null | grep -E 'Verify return code' || true
+          echo "=== curl with verification (as a server-side client would) ==="
+          curl -sS -o /dev/null -w "mcp-health verified -> %{http_code}\n" --resolve "$DOMAIN:443:127.0.0.1" "https://$DOMAIN/mcp-health" || true
+          echo "=== hairpin: this server to its own public name ==="
+          curl -sS -m 10 -o /dev/null -w "public name -> %{http_code}\n" "https://$DOMAIN/mcp-health" || true
+
+      - name: MCP protocol checks (status codes only, key is never printed)
+        run: |
+          KEY=$(grep '^MCP_API_KEYS=' /opt/pmo/deploy/.env | head -1 | cut -d= -f2- | cut -d, -f1)
+          R="--resolve $DOMAIN:443:127.0.0.1"
+          INIT='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"diag","version":"1"}}}'
+          probe() {
+            local name="$1"; shift
+            local body
+            body=$(curl -sS -m 15 $R -o /tmp/mcp-probe.out -w "%{http_code}" "$@" "https://$DOMAIN/mcp") || body="curl-error"
+            echo "$name -> $body: $(head -c 220 /tmp/mcp-probe.out 2>/dev/null | tr '\n' ' ')"
+          }
+          probe "POST initialize, X-Api-Key, Accept json+sse" -X POST -H "X-Api-Key: $KEY" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -d "$INIT"
+          probe "POST initialize, X-Api-Key, Accept json only" -X POST -H "X-Api-Key: $KEY" -H "Content-Type: application/json" -H "Accept: application/json" -d "$INIT"
+          probe "POST initialize, X-Api-Key, no Accept      " -X POST -H "X-Api-Key: $KEY" -H "Content-Type: application/json" -d "$INIT"
+          probe "POST initialize, Bearer                    " -X POST -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -d "$INIT"
+          probe "GET /mcp (SSE stream), X-Api-Key           " -X GET -H "X-Api-Key: $KEY" -H "Accept: text/event-stream"
+          probe "POST without key                           " -X POST -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -d "$INIT"
+          rm -f /tmp/mcp-probe.out
+
+      - name: Requests that reached nginx for /mcp (last 60)
+        run: |
+          docker logs pmo_nginx 2>&1 | grep -E '"(GET|POST|DELETE|OPTIONS|HEAD) /(mcp|\.well-known)' | tail -60 || true
+          echo "=== nginx errors (last 30) ==="
+          docker logs pmo_nginx 2>&1 | grep -iE 'error|ssl' | tail -30 || true
+
+      - name: MCP container logs (last 40)
+        run: docker logs --tail 40 pmo_mcp 2>&1 || true
