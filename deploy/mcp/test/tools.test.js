@@ -40,6 +40,22 @@ test("без ключа и с неверным ключом — 401", async () =
   assert.equal(res.status, 200);
 });
 
+test("совместимость с клиентами: любой Accept принимается, GET/DELETE — 405", async () => {
+  const init = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "t", version: "1" } } });
+  for (const accept of ["application/json", "*/*", undefined]) {
+    const headers = { "Content-Type": "application/json", "X-Api-Key": "test-key-1111" };
+    if (accept) headers.Accept = accept;
+    const res = await fetch(`${srv.url}/mcp`, { method: "POST", headers, body: init });
+    assert.equal(res.status, 200, `Accept=${accept}`);
+    assert.equal((await res.json()).result.serverInfo.name, "pmo-gigaenterprise");
+  }
+  for (const method of ["GET", "DELETE"]) {
+    const res = await fetch(`${srv.url}/mcp`, { method, headers: { "X-Api-Key": "test-key-1111", Accept: "text/event-stream" } });
+    assert.equal(res.status, 405, method);
+    assert.equal(res.headers.get("allow"), "POST");
+  }
+});
+
 test("health", async () => {
   const res = await fetch(`${srv.url}/health`);
   assert.equal(res.status, 200);

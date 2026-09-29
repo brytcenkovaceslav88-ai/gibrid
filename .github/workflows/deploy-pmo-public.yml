@@ -81,6 +81,38 @@ jobs:
           KEYEOF
           echo "Certificate and key written to nginx/certs/."
 
+      # Серверные клиенты (в том числе MCP-клиент Коворка), в отличие от
+      # браузеров, не докачивают промежуточные сертификаты сами: без полной
+      # цепочки они рвут TLS с «unable to verify the first certificate».
+      # Собираем fullchain.crt: сертификат из секрета + недостающие
+      # промежуточные, скачанные по адресу из его поля AIA (CA Issuers).
+      # Сертификаты публичные, ключ здесь не участвует.
+      - name: Build full certificate chain
+        working-directory: /opt/pmo/deploy/nginx/certs
+        run: |
+          set -e
+          cp server.crt fullchain.crt
+          for i in 1 2 3; do
+            if openssl verify -untrusted fullchain.crt server.crt > /dev/null 2>&1; then break; fi
+            # последний сертификат в цепочке — его издателя и докачиваем
+            awk 'BEGIN{c=""} /BEGIN CERT/{c=""} {c=c $0 "\n"} /END CERT/{last=c} END{printf "%s", last}' fullchain.crt > /tmp/pmo-last.pem
+            AIA=$(openssl x509 -in /tmp/pmo-last.pem -noout -ext authorityInfoAccess 2>/dev/null | sed -n 's/.*CA Issuers - URI:\(.*\)/\1/p' | head -1)
+            if [ -z "$AIA" ]; then echo "No CA Issuers URL in certificate"; break; fi
+            echo "Fetching intermediate: $AIA"
+            curl -fsS -m 20 "$AIA" -o /tmp/pmo-issuer.bin
+            openssl x509 -inform DER -in /tmp/pmo-issuer.bin -out /tmp/pmo-issuer.pem 2>/dev/null \
+              || openssl x509 -in /tmp/pmo-issuer.bin -out /tmp/pmo-issuer.pem
+            SUBJ=$(openssl x509 -in /tmp/pmo-issuer.pem -noout -subject)
+            ISS=$(openssl x509 -in /tmp/pmo-issuer.pem -noout -issuer)
+            if [ "${SUBJ#subject=}" = "${ISS#issuer=}" ]; then echo "Reached self-signed root, not appending"; break; fi
+            echo "$SUBJ"
+            printf '\n' >> fullchain.crt
+            cat /tmp/pmo-issuer.pem >> fullchain.crt
+          done
+          rm -f /tmp/pmo-last.pem /tmp/pmo-issuer.bin /tmp/pmo-issuer.pem
+          echo "Chain now contains $(grep -c 'BEGIN CERTIFICATE' fullchain.crt) certificate(s)."
+          openssl verify -untrusted fullchain.crt server.crt || echo "::warning::Could not build a trusted chain — server-side clients (Cowork MCP) will fail TLS"
+
       - name: Start core services (bootstrap nginx config, plain HTTP)
         working-directory: /opt/pmo/deploy
         run: |
@@ -108,7 +140,7 @@ jobs:
               listen 443 ssl;
               server_name ${DOMAIN};
 
-              ssl_certificate     /etc/nginx/certs/server.crt;
+              ssl_certificate     /etc/nginx/certs/fullchain.crt;
               ssl_certificate_key /etc/nginx/certs/server.key;
 
               location /api/ {
@@ -154,6 +186,8 @@ jobs:
         run: |
           sleep 2
           curl -fsSk -o /dev/null -w "https://${DOMAIN}/ (local) -> %{http_code}\n" "https://localhost/" -H "Host: ${DOMAIN}" || true
+          # Как увидит сервер Коворка: с проверкой сертификата, без -k
+          curl -sS -o /dev/null -w "TLS chain check (verified) -> %{http_code}\n" --resolve "${DOMAIN}:443:127.0.0.1" "https://${DOMAIN}/mcp-health" || echo "::warning::TLS chain is not trusted by server-side clients"
           for i in 1 2 3 4 5 6 7 8 9 10; do
             if curl -fsSk "https://localhost/mcp-health" -H "Host: ${DOMAIN}"; then echo; break; fi
             sleep 3

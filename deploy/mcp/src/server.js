@@ -26,6 +26,23 @@ export function createApp() {
   app.set("trust proxy", 1);
   app.use(express.json({ limit: "2mb" }));
 
+  // Журнал обращений к /mcp: метод, код ответа, клиент. Ключ не пишется —
+  // только его последние 4 символа (req.pmoCaller), если он верный.
+  app.use("/mcp", (req, res, next) => {
+    const started = Date.now();
+    res.on("finish", () => log({
+      status: "request",
+      method: req.method,
+      rpc: req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body.method : undefined,
+      code: res.statusCode,
+      ms: Date.now() - started,
+      caller: req.pmoCaller || "-",
+      ip: req.ip,
+      ua: String(req.headers["user-agent"] || "").slice(0, 120)
+    }));
+    next();
+  });
+
   app.get("/health", async (req, res) => {
     try {
       await getPool().query("SELECT 1");
@@ -39,6 +56,13 @@ export function createApp() {
   // Stateless: на каждый запрос — свой сервер и транспорт, без сессий, поэтому
   // любой запрос может обслужить любой экземпляр.
   const handle = async (req, res) => {
+    // Часть клиентов шлёт «Accept: application/json» без text/event-stream —
+    // SDK на такое отвечает 406. Ответ у нас всё равно JSON, так что
+    // принимаем любой Accept.
+    const accept = String(req.headers.accept || "");
+    if (!accept.includes("application/json") || !accept.includes("text/event-stream")) {
+      req.headers.accept = "application/json, text/event-stream";
+    }
     const server = buildMcpServer(req.pmoCaller);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     res.on("close", () => {
@@ -55,9 +79,17 @@ export function createApp() {
       }
     }
   };
+  // Сервер без сессий: потока уведомлений (GET) и закрытия сессии (DELETE)
+  // нет. По спецификации Streamable HTTP на это отвечают 405 — клиент
+  // тогда просто работает через POST.
+  const notAllowed = (req, res) => {
+    res.set("Allow", "POST").status(405).json({
+      jsonrpc: "2.0", error: { code: -32000, message: "Method not allowed: используйте POST" }, id: null
+    });
+  };
   app.post("/mcp", authMiddleware, handle);
-  app.get("/mcp", authMiddleware, handle);
-  app.delete("/mcp", authMiddleware, handle);
+  app.get("/mcp", notAllowed);
+  app.delete("/mcp", notAllowed);
   return app;
 }
 
