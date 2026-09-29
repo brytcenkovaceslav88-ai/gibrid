@@ -56,6 +56,26 @@ test("совместимость с клиентами: любой Accept при
   }
 });
 
+test("токен принимается в разных видах (режимы Коворка «Токен доступа» и «Пользовательские заголовки»)", async () => {
+  const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} });
+  const base = { "Content-Type": "application/json", Accept: "application/json, text/event-stream" };
+  const variants = [
+    [{ Authorization: "Bearer test-key-1111" }, ""],
+    [{ Authorization: "test-key-1111" }, ""],
+    [{ Authorization: "Token test-key-1111" }, ""],
+    [{ "X-Auth-Token": "test-key-1111" }, ""],
+    [{ token: "test-key-1111" }, ""],
+    [{ "X-Api-Key": "  test-key-1111  " }, ""],
+    [{}, "?api_key=test-key-1111"]
+  ];
+  for (const [headers, qs] of variants) {
+    const res = await fetch(`${srv.url}/mcp${qs}`, { method: "POST", headers: { ...base, ...headers }, body });
+    assert.equal(res.status, 200, JSON.stringify(headers) + qs);
+  }
+  const bad = await fetch(`${srv.url}/mcp`, { method: "POST", headers: { ...base, Authorization: "Bearer nope" }, body });
+  assert.equal(bad.status, 401);
+});
+
 test("health", async () => {
   const res = await fetch(`${srv.url}/health`);
   assert.equal(res.status, 200);

@@ -37,6 +37,7 @@ export function createApp() {
       code: res.statusCode,
       ms: Date.now() - started,
       caller: req.pmoCaller || "-",
+      auth: req.pmoAuthFail,
       ip: req.ip,
       ua: String(req.headers["user-agent"] || "").slice(0, 120)
     }));
